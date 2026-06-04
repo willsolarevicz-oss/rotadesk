@@ -17,16 +17,27 @@
     "react-native-url-polyfill": "^3.0.0"
   },
   "devDependencies": {
+    "@react-native/jest-preset": "^0.85.3",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "babel-jest": "^30.4.1",
+    "babel-preset-expo": "^56.0.14",
+    "jest": "^30.4.2",
+    "jest-environment-node": "^30.4.1",
+    "jest-mock": "^30.4.1",
+    "react-test-renderer": "^19.2.3",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "node node_modules/jest/bin/jest.js --no-coverage"
+  },
+  "overrides": {
+    "jest-mock": "^30.4.1"
   },
   "private": true
 }
