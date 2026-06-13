@@ -48,6 +48,8 @@ export default function HistoryScreen() {
     setLoading(true)
     try {
       setPackages(await listPackages(filter))
+    } catch {
+      setPackages([])
     } finally {
       setLoading(false)
     }

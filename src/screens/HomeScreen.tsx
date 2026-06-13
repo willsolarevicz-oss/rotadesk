@@ -46,6 +46,10 @@ export default function HomeScreen() {
       const all = await listPackages('all')
       setPackages(all)
       setStats(computeStats(all))
+    } catch {
+      // banco ainda não configurado ou sem conexão: mostra estado vazio
+      setPackages([])
+      setStats({ pending: 0, delivered: 0, failed: 0 })
     } finally {
       setLoading(false)
     }
