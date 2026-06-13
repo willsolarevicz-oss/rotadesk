@@ -12,6 +12,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../types/navigation'
 import { geocodeAddress } from '../services/geocoding'
+import { lookupCep } from '../services/cep'
 import { createPackage } from '../services/packages'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PackageForm'>
@@ -21,23 +22,59 @@ export default function PackageFormScreen({ route, navigation }: Props) {
 
   const [recipientName, setRecipientName] = useState('')
   const [recipientPhone, setRecipientPhone] = useState('')
-  const [address, setAddress] = useState('')
+  const [cep, setCep] = useState('')
+  const [street, setStreet] = useState('')
+  const [number, setNumber] = useState('')
+  const [neighborhood, setNeighborhood] = useState('')
+  const [city, setCity] = useState('')
+  const [uf, setUf] = useState('')
   const [complement, setComplement] = useState('')
   const [routeName, setRouteName] = useState('')
   const [notes, setNotes] = useState('')
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(
     null
   )
+  const [cepLoading, setCepLoading] = useState(false)
   const [geocoding, setGeocoding] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  // Monta o endereço completo a partir das partes (rua, número, bairro, cidade - UF)
+  function composeAddress(): string {
+    const line1 = [street.trim(), number.trim()].filter(Boolean).join(', ')
+    const cityState = [city.trim(), uf.trim()].filter(Boolean).join(' - ')
+    return [line1, neighborhood.trim(), cityState].filter(Boolean).join(', ')
+  }
+
+  async function handleCepChange(text: string) {
+    setCep(text)
+    setCoords(null)
+    const digits = text.replace(/\D/g, '')
+    if (digits.length === 8) {
+      setCepLoading(true)
+      const result = await lookupCep(digits)
+      setCepLoading(false)
+      if (result) {
+        setStreet(result.street)
+        setNeighborhood(result.neighborhood)
+        setCity(result.city)
+        setUf(result.state)
+      } else {
+        Alert.alert(
+          'CEP não encontrado',
+          'Confira o CEP ou preencha o endereço manualmente.'
+        )
+      }
+    }
+  }
+
   async function handleGeocode() {
-    if (!address.trim()) {
-      Alert.alert('Digite o endereço primeiro')
+    const fullAddress = composeAddress()
+    if (!fullAddress) {
+      Alert.alert('Preencha o endereço primeiro')
       return
     }
     setGeocoding(true)
-    const result = await geocodeAddress(address)
+    const result = await geocodeAddress(fullAddress)
     setGeocoding(false)
     if (result) {
       setCoords(result)
@@ -51,8 +88,9 @@ export default function PackageFormScreen({ route, navigation }: Props) {
   }
 
   async function handleSave() {
-    if (!recipientName.trim() || !address.trim()) {
-      Alert.alert('Preencha pelo menos o nome e o endereço')
+    const fullAddress = composeAddress()
+    if (!recipientName.trim() || !fullAddress) {
+      Alert.alert('Preencha pelo menos o nome e o endereço (CEP)')
       return
     }
     setSaving(true)
@@ -61,7 +99,7 @@ export default function PackageFormScreen({ route, navigation }: Props) {
         tracking_code: trackingCode,
         recipient_name: recipientName.trim(),
         recipient_phone: recipientPhone.trim(),
-        address: address.trim(),
+        address: fullAddress,
         complement: complement.trim(),
         route: routeName.trim(),
         notes: notes.trim(),
@@ -75,6 +113,10 @@ export default function PackageFormScreen({ route, navigation }: Props) {
       setSaving(false)
     }
   }
+
+  const locationHint = [neighborhood, [city, uf].filter(Boolean).join(' - ')]
+    .filter(Boolean)
+    .join(' • ')
 
   return (
     <ScrollView
@@ -104,18 +146,49 @@ export default function PackageFormScreen({ route, navigation }: Props) {
         />
       </Field>
 
-      <Field label="Endereço *">
+      <Field label="CEP">
+        <View style={styles.cepRow}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={cep}
+            onChangeText={handleCepChange}
+            placeholder="00000-000"
+            keyboardType="number-pad"
+            maxLength={9}
+          />
+          {cepLoading ? (
+            <ActivityIndicator style={{ marginLeft: 10 }} color="#3b82f6" />
+          ) : null}
+        </View>
+        <Text style={styles.cepHelp}>Digite o CEP que o endereço preenche sozinho</Text>
+      </Field>
+
+      <Field label="Rua / Logradouro *">
         <TextInput
           style={styles.input}
-          value={address}
+          value={street}
           onChangeText={(t) => {
-            setAddress(t)
+            setStreet(t)
             setCoords(null)
           }}
-          placeholder="Rua, número, bairro, cidade"
-          multiline
+          placeholder="Rua, avenida..."
         />
       </Field>
+
+      <Field label="Número">
+        <TextInput
+          style={styles.input}
+          value={number}
+          onChangeText={(t) => {
+            setNumber(t)
+            setCoords(null)
+          }}
+          placeholder="Ex: 123"
+          keyboardType="number-pad"
+        />
+      </Field>
+
+      {locationHint ? <Text style={styles.locationHint}>📍 {locationHint}</Text> : null}
 
       <TouchableOpacity
         style={styles.geoButton}
@@ -203,6 +276,14 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 15,
     backgroundColor: '#fff',
+  },
+  cepRow: { flexDirection: 'row', alignItems: 'center' },
+  cepHelp: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
+  locationHint: {
+    fontSize: 13,
+    color: '#475569',
+    marginBottom: 14,
+    marginTop: -4,
   },
   geoButton: {
     borderWidth: 1,
