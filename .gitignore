@@ -44,6 +44,9 @@ yarn-error.*
 # IDE
 .idea/
 
+# Supabase CLI (estado local)
+supabase/.temp/
+
 # Resíduos de Flutter (não fazem parte deste app Expo)
 .dart_tool/
 .flutter-plugins-dependencies
