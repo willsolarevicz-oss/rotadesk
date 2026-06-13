@@ -66,7 +66,7 @@ export default function HomeScreen() {
   }
 
   const pending = packages.filter((p) => p.status === 'pending')
-  const displayName = session?.user.phone ?? 'Entregador'
+  const displayName = session?.user.email ?? 'Entregador'
 
   return (
     <View style={styles.container}>

@@ -7,7 +7,7 @@ entrega como concluída — podendo ainda **avisar o destinatário por WhatsApp*
 
 ## ✨ Funcionalidades
 
-- 🔐 Login por telefone com código OTP (Supabase Auth)
+- 🔐 Login por e-mail com código OTP (Supabase Auth, sem custo)
 - 📷 Scanner de código de barras (câmera) com fallback de digitação manual
 - 📝 Cadastro de pacote: destinatário, telefone, endereço, complemento, rota, observações
 - 🗺️ Geocoding do endereço (Google) + mapa embutido com marcador
@@ -96,11 +96,16 @@ npx supabase secrets set ZAPI_INSTANCE_ID=... ZAPI_TOKEN=... ZAPI_CLIENT_TOKEN=.
 npx supabase functions deploy send-whatsapp
 ```
 
-## 🔐 Autenticação (OTP)
+## 🔐 Autenticação (OTP por e-mail)
 
-No dashboard do Supabase, habilite o provedor **Phone** em *Authentication →
-Providers* e configure um gateway de SMS (ex: Twilio). Sem isso, o envio de OTP
-não funciona.
+O login é por **e-mail** (grátis, sem gateway de SMS). No dashboard do Supabase,
+em *Authentication → Providers*, deixe o **Email** habilitado. Para o usuário
+receber o **código** (e não um link), edite o template em *Authentication →
+Email Templates → Magic Link* incluindo o token, por exemplo:
+
+```
+Seu código de acesso é: {{ .Token }}
+```
 
 ## 🧪 Testes
 

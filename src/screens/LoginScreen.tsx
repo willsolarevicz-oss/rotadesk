@@ -8,22 +8,25 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { supabase } from '../services/supabase'
-import { formatPhone } from '../utils/phone'
 
-type Step = 'phone' | 'otp'
+type Step = 'email' | 'otp'
 
 export default function LoginScreen() {
-  const [step, setStep] = useState<Step>('phone')
-  const [phone, setPhone] = useState('')
+  const [step, setStep] = useState<Step>('email')
+  const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSendOtp() {
     setError('')
+    if (!email.trim()) {
+      setError('Digite seu e-mail')
+      return
+    }
     setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
-      phone: formatPhone(phone),
+      email: email.trim(),
     })
     setLoading(false)
     if (error) {
@@ -37,29 +40,31 @@ export default function LoginScreen() {
     setError('')
     setLoading(true)
     const { error } = await supabase.auth.verifyOtp({
-      phone: formatPhone(phone),
+      email: email.trim(),
       token: otp,
-      type: 'sms',
+      type: 'email',
     })
     setLoading(false)
     if (error) {
       setError(error.message)
     }
-    // On success: RootNavigator auto-redirects via onAuthStateChange
+    // Em caso de sucesso: o RootNavigator redireciona via onAuthStateChange
   }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Rotadesk</Text>
 
-      {step === 'phone' ? (
+      {step === 'email' ? (
         <>
           <TextInput
             style={styles.input}
-            placeholder="(11) 99999-9999"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
+            placeholder="seu@email.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
             autoFocus
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -77,6 +82,7 @@ export default function LoginScreen() {
         </>
       ) : (
         <>
+          <Text style={styles.hint}>Enviamos um código para {email}</Text>
           <TextInput
             style={styles.input}
             placeholder="Código de 6 dígitos"
@@ -100,7 +106,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
-              setStep('phone')
+              setStep('email')
               setError('')
             }}
           >
@@ -137,5 +143,6 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   error: { color: '#ef4444', marginBottom: 8 },
+  hint: { color: '#64748b', marginBottom: 12, textAlign: 'center' },
   back: { textAlign: 'center', marginTop: 16, color: '#64748b' },
 })

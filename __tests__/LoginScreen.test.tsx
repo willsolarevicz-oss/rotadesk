@@ -13,23 +13,22 @@ jest.mock('../src/services/supabase', () => ({
 
 import { supabase } from '../src/services/supabase'
 const mockSignInWithOtp = supabase.auth.signInWithOtp as jest.Mock
-const mockVerifyOtp = supabase.auth.verifyOtp as jest.Mock
 
 describe('LoginScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('renderiza o input de telefone no passo 1', () => {
+  it('renderiza o input de e-mail no passo 1', () => {
     const { getByPlaceholderText } = render(<LoginScreen />)
-    expect(getByPlaceholderText('(11) 99999-9999')).toBeTruthy()
+    expect(getByPlaceholderText('seu@email.com')).toBeTruthy()
   })
 
   it('avança para o passo OTP após envio bem-sucedido', async () => {
     mockSignInWithOtp.mockResolvedValueOnce({ error: null })
     const { getByPlaceholderText, getByText } = render(<LoginScreen />)
 
-    fireEvent.changeText(getByPlaceholderText('(11) 99999-9999'), '11999999999')
+    fireEvent.changeText(getByPlaceholderText('seu@email.com'), 'teste@email.com')
     fireEvent.press(getByText('Enviar código'))
 
     await waitFor(() => {
@@ -38,14 +37,16 @@ describe('LoginScreen', () => {
   })
 
   it('exibe erro inline quando signInWithOtp falha', async () => {
-    mockSignInWithOtp.mockResolvedValueOnce({ error: { message: 'Telefone inválido' } })
+    mockSignInWithOtp.mockResolvedValueOnce({
+      error: { message: 'E-mail inválido' },
+    })
     const { getByPlaceholderText, getByText } = render(<LoginScreen />)
 
-    fireEvent.changeText(getByPlaceholderText('(11) 99999-9999'), '123')
+    fireEvent.changeText(getByPlaceholderText('seu@email.com'), 'invalido')
     fireEvent.press(getByText('Enviar código'))
 
     await waitFor(() => {
-      expect(getByText('Telefone inválido')).toBeTruthy()
+      expect(getByText('E-mail inválido')).toBeTruthy()
     })
   })
 
@@ -53,14 +54,14 @@ describe('LoginScreen', () => {
     mockSignInWithOtp.mockResolvedValueOnce({ error: null })
     const { getByPlaceholderText, getByText } = render(<LoginScreen />)
 
-    fireEvent.changeText(getByPlaceholderText('(11) 99999-9999'), '11999999999')
+    fireEvent.changeText(getByPlaceholderText('seu@email.com'), 'teste@email.com')
     fireEvent.press(getByText('Enviar código'))
 
     await waitFor(() => getByText('← Voltar'))
     fireEvent.press(getByText('← Voltar'))
 
     await waitFor(() => {
-      expect(getByPlaceholderText('(11) 99999-9999')).toBeTruthy()
+      expect(getByPlaceholderText('seu@email.com')).toBeTruthy()
     })
   })
 })
