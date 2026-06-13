@@ -2,6 +2,7 @@ import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Ionicons } from '@expo/vector-icons'
 import type { AppTabsParamList } from '../types/navigation'
+import { colors } from '../theme'
 import HomeScreen from '../screens/HomeScreen'
 import ScannerScreen from '../screens/ScannerScreen'
 import HistoryScreen from '../screens/HistoryScreen'
@@ -13,8 +14,15 @@ export default function AppTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textFaint,
+        tabBarStyle: {
+          height: 62,
+          paddingBottom: 8,
+          paddingTop: 8,
+          borderTopColor: colors.border,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
       <Tab.Screen
@@ -22,8 +30,12 @@ export default function AppTabs() {
         component={HomeScreen}
         options={{
           title: 'Início',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'home' : 'home-outline'}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
@@ -32,8 +44,12 @@ export default function AppTabs() {
         component={ScannerScreen}
         options={{
           title: 'Escanear',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="scan-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'scan' : 'scan-outline'}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
@@ -42,8 +58,12 @@ export default function AppTabs() {
         component={HistoryScreen}
         options={{
           title: 'Histórico',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'time' : 'time-outline'}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />

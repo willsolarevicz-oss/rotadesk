@@ -2,11 +2,14 @@ import React, { useState, useCallback } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   FlatList,
   ActivityIndicator,
 } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { StatusBar } from 'expo-status-bar'
+import { Ionicons } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import type { CompositeNavigationProp } from '@react-navigation/native'
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'
@@ -16,10 +19,13 @@ import { supabase } from '../services/supabase'
 import { listPackages } from '../services/packages'
 import { computeStats, type PackageStats } from '../utils/stats'
 import type { Package } from '../types/package'
-import type {
-  AppTabsParamList,
-  AppStackParamList,
-} from '../types/navigation'
+import type { AppTabsParamList, AppStackParamList } from '../types/navigation'
+import { colors, spacing, radius, shadow, brandGradient } from '../theme'
+import FadeInView from '../components/FadeInView'
+import PressableScale from '../components/PressableScale'
+import GradientButton from '../components/GradientButton'
+
+type IoniconName = keyof typeof Ionicons.glyphMap
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<AppTabsParamList, 'Home'>,
@@ -28,6 +34,7 @@ type Nav = CompositeNavigationProp<
 
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>()
+  const insets = useSafeAreaInsets()
   const [session, setSession] = useState<Session | null>(null)
   const [packages, setPackages] = useState<Package[]>([])
   const [stats, setStats] = useState<PackageStats>({
@@ -47,7 +54,6 @@ export default function HomeScreen() {
       setPackages(all)
       setStats(computeStats(all))
     } catch {
-      // banco ainda não configurado ou sem conexão: mostra estado vazio
       setPackages([])
       setStats({ pending: 0, delivered: 0, failed: 0 })
     } finally {
@@ -70,144 +76,195 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Olá,</Text>
-          <Text style={styles.name}>{displayName}</Text>
-        </View>
-        <TouchableOpacity onPress={handleSignOut}>
-          <Text style={styles.signOut}>Sair</Text>
-        </TouchableOpacity>
-      </View>
+      <StatusBar style="light" />
 
-      <View style={styles.statsCard}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{stats.pending}</Text>
-          <Text style={styles.statLabel}>Pendentes</Text>
+      <LinearGradient
+        colors={brandGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>Olá,</Text>
+            <Text style={styles.name} numberOfLines={1}>
+              {displayName}
+            </Text>
+          </View>
+          <PressableScale onPress={handleSignOut} style={styles.logoutBtn}>
+            <Ionicons name="log-out-outline" size={22} color="#fff" />
+          </PressableScale>
         </View>
-        <View style={styles.divider} />
-        <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: '#22c55e' }]}>
-            {stats.delivered}
-          </Text>
-          <Text style={styles.statLabel}>Entregues</Text>
+      </LinearGradient>
+
+      <FadeInView style={styles.statsWrap}>
+        <View style={styles.statsCard}>
+          <StatItem
+            icon="time"
+            color={colors.pending}
+            value={stats.pending}
+            label="Pendentes"
+          />
+          <View style={styles.statDivider} />
+          <StatItem
+            icon="checkmark-circle"
+            color={colors.delivered}
+            value={stats.delivered}
+            label="Entregues"
+          />
+          <View style={styles.statDivider} />
+          <StatItem
+            icon="close-circle"
+            color={colors.failed}
+            value={stats.failed}
+            label="Falhas"
+          />
         </View>
-        <View style={styles.divider} />
-        <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: '#ef4444' }]}>
-            {stats.failed}
-          </Text>
-          <Text style={styles.statLabel}>Não entregues</Text>
-        </View>
-      </View>
+      </FadeInView>
+
+      <Text style={styles.sectionTitle}>Pacotes pendentes</Text>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 32 }} color="#3b82f6" />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
       ) : pending.length === 0 ? (
-        <View style={styles.emptyState}>
+        <FadeInView style={styles.empty}>
+          <Ionicons name="cube-outline" size={56} color={colors.textFaint} />
           <Text style={styles.emptyTitle}>Nenhum pacote pendente</Text>
-          <Text style={styles.emptySubtitle}>
+          <Text style={styles.emptySub}>
             Escaneie os pacotes do dia para gerar sua rota
           </Text>
-        </View>
+        </FadeInView>
       ) : (
         <FlatList
           data={pending}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(i) => i.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.item}
-              onPress={() =>
-                navigation.navigate('PackageDetail', { packageId: item.id })
-              }
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemName}>
-                  {item.recipient_name || 'Sem nome'}
-                </Text>
-                <Text style={styles.itemAddress} numberOfLines={1}>
-                  {item.address || 'Sem endereço'}
-                </Text>
-                {item.route ? (
-                  <Text style={styles.itemRoute}>{item.route}</Text>
-                ) : null}
-              </View>
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item, index }) => (
+            <FadeInView delay={index * 60}>
+              <PressableScale
+                style={styles.itemCard}
+                onPress={() =>
+                  navigation.navigate('PackageDetail', { packageId: item.id })
+                }
+              >
+                <View style={styles.itemIcon}>
+                  <Ionicons name="cube" size={20} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemName} numberOfLines={1}>
+                    {item.recipient_name || 'Sem nome'}
+                  </Text>
+                  <Text style={styles.itemAddr} numberOfLines={1}>
+                    {item.address || 'Sem endereço'}
+                  </Text>
+                  {item.route ? (
+                    <Text style={styles.itemRoute}>{item.route}</Text>
+                  ) : null}
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={colors.textFaint}
+                />
+              </PressableScale>
+            </FadeInView>
           )}
         />
       )}
 
-      <TouchableOpacity
-        style={styles.ctaButton}
+      <GradientButton
+        title="Escanear Pacotes"
+        style={styles.cta}
         onPress={() => navigation.navigate('Scanner')}
-      >
-        <Text style={styles.ctaText}>Escanear Pacotes</Text>
-      </TouchableOpacity>
+      />
+    </View>
+  )
+}
+
+function StatItem({
+  icon,
+  color,
+  value,
+  label,
+}: {
+  icon: IoniconName
+  color: string
+  value: number
+  label: string
+}) {
+  return (
+    <View style={styles.statItem}>
+      <Ionicons name={icon} size={18} color={color} />
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: 64,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  greeting: { fontSize: 12, color: '#64748b' },
-  name: { fontSize: 18, fontWeight: '700' },
-  signOut: { fontSize: 14, color: '#64748b' },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  greeting: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
+  name: { fontSize: 20, fontWeight: '800', color: '#fff', marginTop: 2 },
+  logoutBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statsWrap: { marginTop: -44, marginHorizontal: spacing.lg },
   statsCard: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    paddingVertical: spacing.lg,
+    ...shadow.card,
   },
-  statItem: { alignItems: 'center' },
-  statNumber: { fontSize: 24, fontWeight: '700' },
-  statLabel: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  divider: { width: 1, height: 40, backgroundColor: '#e2e8f0' },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statValue: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 12, color: colors.textMuted },
+  statDivider: { width: 1, backgroundColor: colors.border, marginVertical: 4 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.xl,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  emptySubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center' },
-  list: { padding: 16 },
-  item: {
+  list: { paddingHorizontal: spacing.lg, paddingBottom: 8 },
+  itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 8,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
+    ...shadow.soft,
   },
-  itemName: { fontSize: 15, fontWeight: '600', color: '#0f172a' },
-  itemAddress: { fontSize: 13, color: '#64748b', marginTop: 2 },
-  itemRoute: { fontSize: 12, color: '#3b82f6', marginTop: 2 },
-  chevron: { fontSize: 24, color: '#cbd5e1' },
-  ctaButton: {
-    margin: 16,
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    padding: 16,
+  itemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: '#eef2ff',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  ctaText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  itemName: { fontSize: 15, fontWeight: '700', color: colors.text },
+  itemAddr: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  itemRoute: { fontSize: 12, color: colors.primary, marginTop: 2, fontWeight: '600' },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 12 },
+  emptySub: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
+  cta: { margin: spacing.lg },
 })
