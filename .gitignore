@@ -40,3 +40,18 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# IDE
+.idea/
+
+# Resíduos de Flutter (não fazem parte deste app Expo)
+.dart_tool/
+.flutter-plugins-dependencies
+.metadata
+analysis_options.yaml
+pubspec.yaml
+pubspec.lock
+rotadesk.iml
+lib/
+windows/
+build/

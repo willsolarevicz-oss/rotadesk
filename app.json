@@ -7,7 +7,13 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "O Rotadesk usa a câmera para escanear o código de barras dos pacotes."
+      },
+      "config": {
+        "googleMapsApiKey": "COLE_SUA_CHAVE_GOOGLE_MAPS"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +22,24 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["CAMERA"],
+      "config": {
+        "googleMaps": {
+          "apiKey": "COLE_SUA_CHAVE_GOOGLE_MAPS"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O Rotadesk usa a câmera para escanear o código de barras dos pacotes."
+        }
+      ]
+    ]
   }
 }
