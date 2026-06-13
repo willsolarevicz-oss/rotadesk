@@ -32,7 +32,7 @@ describe('LoginScreen', () => {
     fireEvent.press(getByText('Enviar código'))
 
     await waitFor(() => {
-      expect(getByPlaceholderText('Código de 6 dígitos')).toBeTruthy()
+      expect(getByPlaceholderText('Código de 8 dígitos')).toBeTruthy()
     })
   })
 

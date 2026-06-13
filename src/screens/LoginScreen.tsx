@@ -39,11 +39,20 @@ export default function LoginScreen() {
   async function handleVerifyOtp() {
     setError('')
     setLoading(true)
-    const { error } = await supabase.auth.verifyOtp({
+    // Tenta como login por e-mail; se falhar, tenta como confirmação de cadastro
+    let { error } = await supabase.auth.verifyOtp({
       email: email.trim(),
-      token: otp,
+      token: otp.trim(),
       type: 'email',
     })
+    if (error) {
+      const retry = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otp.trim(),
+        type: 'signup',
+      })
+      error = retry.error
+    }
     setLoading(false)
     if (error) {
       setError(error.message)
@@ -85,11 +94,11 @@ export default function LoginScreen() {
           <Text style={styles.hint}>Enviamos um código para {email}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Código de 6 dígitos"
+            placeholder="Código de 8 dígitos"
             value={otp}
             onChangeText={setOtp}
             keyboardType="number-pad"
-            maxLength={6}
+            maxLength={8}
             autoFocus
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
