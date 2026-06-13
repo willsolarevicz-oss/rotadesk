@@ -1,22 +1,15 @@
 import React from 'react'
-import { View, Text } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import { AppTabsParamList } from '../types/navigation'
+import type { AppTabsParamList } from '../types/navigation'
 import HomeScreen from '../screens/HomeScreen'
+import ScannerScreen from '../screens/ScannerScreen'
+import HistoryScreen from '../screens/HistoryScreen'
 
 const Tab = createBottomTabNavigator<AppTabsParamList>()
 
-function PlaceholderScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Em breve</Text>
-    </View>
-  )
-}
-
 export default function AppTabs() {
   return (
-    <Tab.Navigator>
+    <Tab.Navigator screenOptions={{ headerShown: false }}>
       <Tab.Screen
         name="Home"
         component={HomeScreen}
@@ -24,12 +17,12 @@ export default function AppTabs() {
       />
       <Tab.Screen
         name="Scanner"
-        component={PlaceholderScreen}
-        options={{ title: 'Scanner' }}
+        component={ScannerScreen}
+        options={{ title: 'Escanear' }}
       />
       <Tab.Screen
         name="History"
-        component={PlaceholderScreen}
+        component={HistoryScreen}
         options={{ title: 'Histórico' }}
       />
     </Tab.Navigator>
