@@ -1,18 +1,21 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
+import * as ImageManipulator from 'expo-image-manipulator'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import type { AppStackParamList } from '../types/navigation'
-import { colors, spacing, radius, shadow } from '../theme'
+import type { AppStackParamList, PackagePrefill } from '../types/navigation'
+import { readLabel } from '../services/labelReader'
+import { colors, spacing, radius } from '../theme'
 import PressableScale from '../components/PressableScale'
 import GradientButton from '../components/GradientButton'
 
@@ -20,33 +23,67 @@ type Nav = NativeStackNavigationProp<AppStackParamList>
 
 export default function ScannerScreen() {
   const navigation = useNavigation<Nav>()
+  const cameraRef = useRef<CameraView>(null)
   const [permission, requestPermission] = useCameraPermissions()
   const [scanned, setScanned] = useState(false)
+  const [reading, setReading] = useState(false)
   const [manual, setManual] = useState(false)
   const [code, setCode] = useState('')
 
-  const goToForm = useCallback(
-    (trackingCode: string) => {
-      navigation.navigate('PackageForm', { trackingCode })
-    },
-    [navigation]
-  )
-
-  function handleScanned(result: { type: string; data: string }) {
-    if (scanned) return
+  async function handleScanned(result: { type: string; data: string }) {
+    if (scanned || reading) return
     setScanned(true)
-    goToForm(result.data)
+    setReading(true)
+
+    let prefill: PackagePrefill | undefined
+    try {
+      const photo = await cameraRef.current?.takePictureAsync({
+        quality: 0.5,
+        skipProcessing: true,
+      })
+      if (photo?.uri) {
+        const shrunk = await ImageManipulator.manipulateAsync(
+          photo.uri,
+          [{ resize: { width: 1000 } }],
+          {
+            compress: 0.6,
+            format: ImageManipulator.SaveFormat.JPEG,
+            base64: true,
+          }
+        )
+        if (shrunk.base64) {
+          const data = await readLabel(shrunk.base64)
+          if (data) {
+            prefill = {
+              recipient_name: data.recipient_name,
+              recipient_phone: data.phone,
+              cep: data.cep,
+              street: data.street,
+              number: data.number,
+              neighborhood: data.neighborhood,
+              city: data.city,
+              state: data.state,
+            }
+          }
+        }
+      }
+    } catch {
+      // segue sem preenchimento automático
+    }
+
+    setReading(false)
+    navigation.navigate('PackageForm', { trackingCode: result.data, prefill })
     setTimeout(() => setScanned(false), 1500)
   }
 
-  function handleManualSubmit() {
+  const goToManual = useCallback(() => {
     if (!code.trim()) {
       Alert.alert('Informe o código do pacote')
       return
     }
-    goToForm(code.trim())
+    navigation.navigate('PackageForm', { trackingCode: code.trim() })
     setCode('')
-  }
+  }, [code, navigation])
 
   if (!permission) {
     return <View style={styles.fill} />
@@ -95,7 +132,7 @@ export default function ScannerScreen() {
         </View>
         <GradientButton
           title="Continuar"
-          onPress={handleManualSubmit}
+          onPress={goToManual}
           style={{ alignSelf: 'stretch', marginTop: spacing.md }}
         />
         <PressableScale onPress={() => setManual(false)} style={{ padding: 12 }}>
@@ -109,6 +146,7 @@ export default function ScannerScreen() {
     <View style={styles.fill}>
       <StatusBar style="light" />
       <CameraView
+        ref={cameraRef}
         style={styles.fill}
         facing="back"
         barcodeScannerSettings={{
@@ -137,7 +175,7 @@ export default function ScannerScreen() {
           <View style={[styles.corner, styles.br]} />
         </View>
         <Text style={styles.overlayText}>
-          Aponte para o código de barras do pacote
+          Aponte para a etiqueta do pacote
         </Text>
         <PressableScale
           style={styles.manualButton}
@@ -147,6 +185,13 @@ export default function ScannerScreen() {
           <Text style={styles.manualButtonText}>Digitar código</Text>
         </PressableScale>
       </View>
+
+      {reading ? (
+        <View style={styles.readingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.readingText}>Lendo etiqueta...</Text>
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -234,4 +279,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   manualButtonText: { color: colors.text, fontWeight: '700' },
+  readingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15,23,42,0.78)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  readingText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 })

@@ -10,8 +10,20 @@ export type AppTabsParamList = {
   History: undefined
 }
 
+// Dados pré-preenchidos pela leitura da etiqueta (IA), todos opcionais.
+export type PackagePrefill = {
+  recipient_name?: string
+  recipient_phone?: string
+  cep?: string
+  street?: string
+  number?: string
+  neighborhood?: string
+  city?: string
+  state?: string
+}
+
 export type AppStackParamList = {
   MainTabs: NavigatorScreenParams<AppTabsParamList> | undefined
-  PackageForm: { trackingCode: string }
+  PackageForm: { trackingCode: string; prefill?: PackagePrefill }
   PackageDetail: { packageId: string }
 }

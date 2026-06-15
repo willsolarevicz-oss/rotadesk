@@ -22,16 +22,20 @@ import GradientButton from '../components/GradientButton'
 type Props = NativeStackScreenProps<AppStackParamList, 'PackageForm'>
 
 export default function PackageFormScreen({ route, navigation }: Props) {
-  const { trackingCode } = route.params
+  const { trackingCode, prefill } = route.params
+  const p = prefill ?? {}
+  const autoFilled = Boolean(
+    p.recipient_name || p.street || p.cep || p.city
+  )
 
-  const [recipientName, setRecipientName] = useState('')
-  const [recipientPhone, setRecipientPhone] = useState('')
-  const [cep, setCep] = useState('')
-  const [street, setStreet] = useState('')
-  const [number, setNumber] = useState('')
-  const [neighborhood, setNeighborhood] = useState('')
-  const [city, setCity] = useState('')
-  const [uf, setUf] = useState('')
+  const [recipientName, setRecipientName] = useState(p.recipient_name ?? '')
+  const [recipientPhone, setRecipientPhone] = useState(p.recipient_phone ?? '')
+  const [cep, setCep] = useState(p.cep ?? '')
+  const [street, setStreet] = useState(p.street ?? '')
+  const [number, setNumber] = useState(p.number ?? '')
+  const [neighborhood, setNeighborhood] = useState(p.neighborhood ?? '')
+  const [city, setCity] = useState(p.city ?? '')
+  const [uf, setUf] = useState(p.state ?? '')
   const [complement, setComplement] = useState('')
   const [routeName, setRouteName] = useState('')
   const [notes, setNotes] = useState('')
@@ -137,6 +141,15 @@ export default function PackageFormScreen({ route, navigation }: Props) {
             <Text style={styles.code}>{trackingCode}</Text>
           </View>
         </View>
+
+        {autoFilled ? (
+          <View style={styles.aiBanner}>
+            <Ionicons name="sparkles" size={16} color={colors.primary} />
+            <Text style={styles.aiBannerText}>
+              Preenchido pela leitura da etiqueta. Confira antes de salvar.
+            </Text>
+          </View>
+        ) : null}
 
         <Field label="Nome do destinatário *">
           <TextInput
@@ -314,6 +327,21 @@ const styles = StyleSheet.create({
   },
   codeLabel: { fontSize: 12, color: colors.textMuted },
   code: { fontSize: 17, fontWeight: '800', color: colors.text },
+  aiBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#eef2ff',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  aiBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
+  },
   field: { marginBottom: spacing.md },
   label: {
     fontSize: 13,

@@ -96,6 +96,24 @@ npx supabase secrets set ZAPI_INSTANCE_ID=... ZAPI_TOKEN=... ZAPI_CLIENT_TOKEN=.
 npx supabase functions deploy send-whatsapp
 ```
 
+## 📸 Leitura de etiqueta por IA (opcional)
+
+Ao escanear, o app tira uma foto da etiqueta e usa o **Claude Haiku** (visão) para
+preencher nome e endereço automaticamente. É **opcional**: sem isso, o cadastro
+segue manual (com auto-preenchimento por CEP). Para ativar:
+
+1. Crie uma chave de API em [console.anthropic.com](https://console.anthropic.com)
+   (defina um **limite de gasto** para não ter surpresa — custa ~centavos por foto).
+2. Configure o secret e faça o deploy da função:
+
+```bash
+npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+npx supabase functions deploy read-label
+```
+
+A chave fica **no servidor** (secret do Supabase), nunca no app. Se a função não
+estiver no ar, o app simplesmente não preenche sozinho — sem quebrar.
+
 ## 🔐 Autenticação (OTP por e-mail)
 
 O login é por **e-mail** (grátis, sem gateway de SMS). No dashboard do Supabase,
