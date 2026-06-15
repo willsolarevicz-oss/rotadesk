@@ -3,17 +3,21 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
   Alert,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../types/navigation'
 import { geocodeAddress } from '../services/geocoding'
 import { lookupCep } from '../services/cep'
 import { createPackage } from '../services/packages'
+import { colors, spacing, radius, shadow } from '../theme'
+import FadeInView from '../components/FadeInView'
+import PressableScale from '../components/PressableScale'
+import GradientButton from '../components/GradientButton'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PackageForm'>
 
@@ -38,7 +42,6 @@ export default function PackageFormScreen({ route, navigation }: Props) {
   const [geocoding, setGeocoding] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Monta o endereço completo a partir das partes (rua, número, bairro, cidade - UF)
   function composeAddress(): string {
     const line1 = [street.trim(), number.trim()].filter(Boolean).join(', ')
     const cityState = [city.trim(), uf.trim()].filter(Boolean).join(' - ')
@@ -78,7 +81,7 @@ export default function PackageFormScreen({ route, navigation }: Props) {
     setGeocoding(false)
     if (result) {
       setCoords(result)
-      Alert.alert('Endereço localizado ✅', 'O pacote será mostrado no mapa.')
+      Alert.alert('Endereço localizado', 'O pacote será mostrado no mapa.')
     } else {
       Alert.alert(
         'Não encontrado',
@@ -124,125 +127,151 @@ export default function PackageFormScreen({ route, navigation }: Props) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.codeLabel}>Código do pacote</Text>
-      <Text style={styles.code}>{trackingCode}</Text>
-
-      <Field label="Nome do destinatário *">
-        <TextInput
-          style={styles.input}
-          value={recipientName}
-          onChangeText={setRecipientName}
-          placeholder="Ex: Maria Silva"
-        />
-      </Field>
-
-      <Field label="Telefone (WhatsApp)">
-        <TextInput
-          style={styles.input}
-          value={recipientPhone}
-          onChangeText={setRecipientPhone}
-          placeholder="(11) 99999-9999"
-          keyboardType="phone-pad"
-        />
-      </Field>
-
-      <Field label="CEP">
-        <View style={styles.cepRow}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            value={cep}
-            onChangeText={handleCepChange}
-            placeholder="00000-000"
-            keyboardType="number-pad"
-            maxLength={9}
-          />
-          {cepLoading ? (
-            <ActivityIndicator style={{ marginLeft: 10 }} color="#3b82f6" />
-          ) : null}
+      <FadeInView>
+        <View style={styles.codeCard}>
+          <View style={styles.codeIcon}>
+            <Ionicons name="barcode-outline" size={22} color={colors.primary} />
+          </View>
+          <View>
+            <Text style={styles.codeLabel}>Código do pacote</Text>
+            <Text style={styles.code}>{trackingCode}</Text>
+          </View>
         </View>
-        <Text style={styles.cepHelp}>Digite o CEP que o endereço preenche sozinho</Text>
-      </Field>
 
-      <Field label="Rua / Logradouro *">
-        <TextInput
-          style={styles.input}
-          value={street}
-          onChangeText={(t) => {
-            setStreet(t)
-            setCoords(null)
-          }}
-          placeholder="Rua, avenida..."
+        <Field label="Nome do destinatário *">
+          <TextInput
+            style={styles.input}
+            value={recipientName}
+            onChangeText={setRecipientName}
+            placeholder="Ex: Maria Silva"
+            placeholderTextColor={colors.textFaint}
+          />
+        </Field>
+
+        <Field label="Telefone (WhatsApp)">
+          <TextInput
+            style={styles.input}
+            value={recipientPhone}
+            onChangeText={setRecipientPhone}
+            placeholder="(11) 99999-9999"
+            placeholderTextColor={colors.textFaint}
+            keyboardType="phone-pad"
+          />
+        </Field>
+
+        <Field label="CEP">
+          <View style={styles.cepRow}>
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              value={cep}
+              onChangeText={handleCepChange}
+              placeholder="00000-000"
+              placeholderTextColor={colors.textFaint}
+              keyboardType="number-pad"
+              maxLength={9}
+            />
+            {cepLoading ? (
+              <ActivityIndicator style={{ marginLeft: 10 }} color={colors.primary} />
+            ) : null}
+          </View>
+          <Text style={styles.help}>Digite o CEP que o endereço preenche sozinho</Text>
+        </Field>
+
+        <Field label="Rua / Logradouro *">
+          <TextInput
+            style={styles.input}
+            value={street}
+            onChangeText={(t) => {
+              setStreet(t)
+              setCoords(null)
+            }}
+            placeholder="Rua, avenida..."
+            placeholderTextColor={colors.textFaint}
+          />
+        </Field>
+
+        <Field label="Número">
+          <TextInput
+            style={styles.input}
+            value={number}
+            onChangeText={(t) => {
+              setNumber(t)
+              setCoords(null)
+            }}
+            placeholder="Ex: 123"
+            placeholderTextColor={colors.textFaint}
+            keyboardType="number-pad"
+          />
+        </Field>
+
+        {locationHint ? (
+          <View style={styles.hintRow}>
+            <Ionicons name="location" size={15} color={colors.primary} />
+            <Text style={styles.hintText}>{locationHint}</Text>
+          </View>
+        ) : null}
+
+        <PressableScale
+          style={[styles.geoButton, coords && styles.geoButtonOk]}
+          onPress={handleGeocode}
+          disabled={geocoding}
+        >
+          {geocoding ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <>
+              <Ionicons
+                name={coords ? 'checkmark-circle' : 'search'}
+                size={18}
+                color={coords ? colors.delivered : colors.primary}
+              />
+              <Text
+                style={[styles.geoText, coords && { color: colors.delivered }]}
+              >
+                {coords ? 'Endereço localizado' : 'Buscar no mapa'}
+              </Text>
+            </>
+          )}
+        </PressableScale>
+
+        <Field label="Complemento / referência">
+          <TextInput
+            style={styles.input}
+            value={complement}
+            onChangeText={setComplement}
+            placeholder="Apto, bloco, ponto de referência"
+            placeholderTextColor={colors.textFaint}
+          />
+        </Field>
+
+        <Field label="Rota">
+          <TextInput
+            style={styles.input}
+            value={routeName}
+            onChangeText={setRouteName}
+            placeholder="Ex: Zona Sul / Manhã"
+            placeholderTextColor={colors.textFaint}
+          />
+        </Field>
+
+        <Field label="Observações">
+          <TextInput
+            style={styles.input}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Ex: deixar na portaria"
+            placeholderTextColor={colors.textFaint}
+            multiline
+          />
+        </Field>
+
+        <GradientButton
+          title="Salvar pacote"
+          loading={saving}
+          onPress={handleSave}
+          style={{ marginTop: spacing.md }}
         />
-      </Field>
-
-      <Field label="Número">
-        <TextInput
-          style={styles.input}
-          value={number}
-          onChangeText={(t) => {
-            setNumber(t)
-            setCoords(null)
-          }}
-          placeholder="Ex: 123"
-          keyboardType="number-pad"
-        />
-      </Field>
-
-      {locationHint ? <Text style={styles.locationHint}>📍 {locationHint}</Text> : null}
-
-      <TouchableOpacity
-        style={styles.geoButton}
-        onPress={handleGeocode}
-        disabled={geocoding}
-      >
-        {geocoding ? (
-          <ActivityIndicator color="#3b82f6" />
-        ) : (
-          <Text style={styles.geoButtonText}>
-            {coords ? '📍 Endereço localizado' : '🔍 Buscar no mapa'}
-          </Text>
-        )}
-      </TouchableOpacity>
-
-      <Field label="Complemento / referência">
-        <TextInput
-          style={styles.input}
-          value={complement}
-          onChangeText={setComplement}
-          placeholder="Apto, bloco, ponto de referência"
-        />
-      </Field>
-
-      <Field label="Rota">
-        <TextInput
-          style={styles.input}
-          value={routeName}
-          onChangeText={setRouteName}
-          placeholder="Ex: Zona Sul / Manhã"
-        />
-      </Field>
-
-      <Field label="Observações">
-        <TextInput
-          style={styles.input}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Ex: deixar na portaria"
-          multiline
-        />
-      </Field>
-
-      <TouchableOpacity
-        style={styles.saveButton}
-        onPress={handleSave}
-        disabled={saving}
-      >
-        {saving ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.saveButtonText}>Salvar pacote</Text>
-        )}
-      </TouchableOpacity>
+      </FadeInView>
     </ScrollView>
   )
 }
@@ -263,43 +292,65 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { padding: 16, paddingBottom: 48 },
-  codeLabel: { fontSize: 12, color: '#64748b' },
-  code: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#0f172a' },
-  field: { marginBottom: 14 },
-  label: { fontSize: 13, color: '#334155', marginBottom: 6, fontWeight: '500' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: spacing.lg, paddingBottom: 48 },
+  codeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    ...shadow.soft,
+  },
+  codeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  codeLabel: { fontSize: 12, color: colors.textMuted },
+  code: { fontSize: 17, fontWeight: '800', color: colors.text },
+  field: { marginBottom: spacing.md },
+  label: {
+    fontSize: 13,
+    color: colors.text,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
   input: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 13,
     fontSize: 15,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
+    color: colors.text,
   },
   cepRow: { flexDirection: 'row', alignItems: 'center' },
-  cepHelp: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
-  locationHint: {
-    fontSize: 13,
-    color: '#475569',
-    marginBottom: 14,
-    marginTop: -4,
+  help: { fontSize: 12, color: colors.textFaint, marginTop: 4 },
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: spacing.md,
+    marginTop: -2,
   },
+  hintText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
   geoButton: {
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 13,
+    marginBottom: spacing.md,
   },
-  geoButtonText: { color: '#3b82f6', fontWeight: '600' },
-  saveButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 10,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  saveButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  geoButtonOk: { borderColor: colors.delivered, backgroundColor: '#f0fdf4' },
+  geoText: { color: colors.primary, fontWeight: '700' },
 })

@@ -1,6 +1,7 @@
 import React from 'react'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../types/navigation'
+import { colors } from '../theme'
 import AppTabs from './AppTabs'
 import PackageFormScreen from '../screens/PackageFormScreen'
 import PackageDetailScreen from '../screens/PackageDetailScreen'
@@ -9,7 +10,15 @@ const Stack = createNativeStackNavigator<AppStackParamList>()
 
 export default function AppNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.primary,
+        headerTitleStyle: { color: colors.text, fontWeight: '700' },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: colors.bg },
+      }}
+    >
       <Stack.Screen
         name="MainTabs"
         component={AppTabs}

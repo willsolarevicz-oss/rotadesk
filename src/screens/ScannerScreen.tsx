@@ -2,15 +2,19 @@ import React, { useState, useCallback } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   TextInput,
   Alert,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
+import { StatusBar } from 'expo-status-bar'
+import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../types/navigation'
+import { colors, spacing, radius, shadow } from '../theme'
+import PressableScale from '../components/PressableScale'
+import GradientButton from '../components/GradientButton'
 
 type Nav = NativeStackNavigationProp<AppStackParamList>
 
@@ -32,7 +36,6 @@ export default function ScannerScreen() {
     if (scanned) return
     setScanned(true)
     goToForm(result.data)
-    // libera para novo scan ao voltar
     setTimeout(() => setScanned(false), 1500)
   }
 
@@ -46,21 +49,27 @@ export default function ScannerScreen() {
   }
 
   if (!permission) {
-    return <View style={styles.container} />
+    return <View style={styles.fill} />
   }
 
   if (!permission.granted && !manual) {
     return (
       <View style={styles.center}>
-        <Text style={styles.info}>
-          Precisamos da câmera para escanear os pacotes.
+        <View style={styles.permIcon}>
+          <Ionicons name="camera-outline" size={40} color={colors.primary} />
+        </View>
+        <Text style={styles.permTitle}>Acesso à câmera</Text>
+        <Text style={styles.permText}>
+          Precisamos da câmera para escanear o código de barras dos pacotes.
         </Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Permitir câmera</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setManual(true)}>
+        <GradientButton
+          title="Permitir câmera"
+          onPress={requestPermission}
+          style={{ alignSelf: 'stretch', marginTop: spacing.lg }}
+        />
+        <PressableScale onPress={() => setManual(true)} style={{ padding: 12 }}>
           <Text style={styles.link}>Digitar código manualmente</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     )
   }
@@ -68,29 +77,39 @@ export default function ScannerScreen() {
   if (manual) {
     return (
       <View style={styles.center}>
-        <Text style={styles.info}>Digite o código do pacote</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Código de rastreio"
-          value={code}
-          onChangeText={setCode}
-          autoCapitalize="characters"
-          autoFocus
+        <View style={styles.permIcon}>
+          <Ionicons name="keypad-outline" size={38} color={colors.primary} />
+        </View>
+        <Text style={styles.permTitle}>Digitar código</Text>
+        <View style={styles.inputRow}>
+          <Ionicons name="barcode-outline" size={20} color={colors.textFaint} />
+          <TextInput
+            style={styles.input}
+            placeholder="Código de rastreio"
+            placeholderTextColor={colors.textFaint}
+            value={code}
+            onChangeText={setCode}
+            autoCapitalize="characters"
+            autoFocus
+          />
+        </View>
+        <GradientButton
+          title="Continuar"
+          onPress={handleManualSubmit}
+          style={{ alignSelf: 'stretch', marginTop: spacing.md }}
         />
-        <TouchableOpacity style={styles.button} onPress={handleManualSubmit}>
-          <Text style={styles.buttonText}>Continuar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setManual(false)}>
+        <PressableScale onPress={() => setManual(false)} style={{ padding: 12 }}>
           <Text style={styles.link}>Voltar para a câmera</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     )
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.fill}>
+      <StatusBar style="light" />
       <CameraView
-        style={styles.camera}
+        style={styles.fill}
         facing="back"
         barcodeScannerSettings={{
           barcodeTypes: [
@@ -111,78 +130,108 @@ export default function ScannerScreen() {
         onBarcodeScanned={handleScanned}
       />
       <View style={styles.overlay}>
-        <View style={styles.frame} />
+        <View style={styles.frame}>
+          <View style={[styles.corner, styles.tl]} />
+          <View style={[styles.corner, styles.tr]} />
+          <View style={[styles.corner, styles.bl]} />
+          <View style={[styles.corner, styles.br]} />
+        </View>
         <Text style={styles.overlayText}>
           Aponte para o código de barras do pacote
         </Text>
-        <TouchableOpacity
+        <PressableScale
           style={styles.manualButton}
           onPress={() => setManual(true)}
         >
+          <Ionicons name="create-outline" size={18} color={colors.text} />
           <Text style={styles.manualButtonText}>Digitar código</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  camera: { flex: 1 },
+  fill: { flex: 1, backgroundColor: '#000' },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#f8fafc',
+    padding: spacing.xl,
+    backgroundColor: colors.bg,
   },
-  info: { fontSize: 16, textAlign: 'center', marginBottom: 16, color: '#334155' },
+  permIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: radius.xl,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  permTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
+  permText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 6,
+    color: colors.textMuted,
+    lineHeight: 20,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    marginTop: spacing.lg,
+  },
+  input: { flex: 1, paddingVertical: 14, fontSize: 16, color: colors.text },
+  link: { color: colors.textMuted, fontWeight: '600' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
-  frame: {
-    width: 260,
-    height: 160,
-    borderWidth: 3,
-    borderColor: '#fff',
-    borderRadius: 16,
-    backgroundColor: 'transparent',
+  frame: { width: 270, height: 180 },
+  corner: { position: 'absolute', width: 34, height: 34, borderColor: '#fff' },
+  tl: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 14 },
+  tr: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 14 },
+  bl: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 14,
+  },
+  br: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 14,
   },
   overlayText: {
     color: '#fff',
-    marginTop: 24,
+    marginTop: spacing.xl,
     fontSize: 15,
+    fontWeight: '600',
     textAlign: 'center',
     paddingHorizontal: 32,
   },
   manualButton: {
-    marginTop: 32,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  manualButtonText: { color: '#0f172a', fontWeight: '600' },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  button: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
+    gap: 6,
+    marginTop: spacing.xl,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
   },
-  buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  link: { color: '#64748b', marginTop: 16 },
+  manualButtonText: { color: colors.text, fontWeight: '700' },
 })

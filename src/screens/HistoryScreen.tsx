@@ -4,19 +4,22 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   ActivityIndicator,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import type { CompositeNavigationProp } from '@react-navigation/native'
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import type {
-  AppTabsParamList,
-  AppStackParamList,
-} from '../types/navigation'
+import type { AppTabsParamList, AppStackParamList } from '../types/navigation'
 import type { Package, PackageStatus } from '../types/package'
 import { listPackages } from '../services/packages'
+import { colors, spacing, radius, shadow, statusMeta } from '../theme'
+import FadeInView from '../components/FadeInView'
+import PressableScale from '../components/PressableScale'
+
+type IoniconName = keyof typeof Ionicons.glyphMap
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<AppTabsParamList, 'History'>,
@@ -32,14 +35,9 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'failed', label: 'Falhas' },
 ]
 
-const STATUS_COLOR: Record<PackageStatus, string> = {
-  pending: '#f59e0b',
-  delivered: '#22c55e',
-  failed: '#ef4444',
-}
-
 export default function HistoryScreen() {
   const navigation = useNavigation<Nav>()
+  const insets = useSafeAreaInsets()
   const [filter, setFilter] = useState<Filter>('all')
   const [packages, setPackages] = useState<Package[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,60 +61,72 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.headerTitle}>Histórico</Text>
+      </View>
+
       <View style={styles.filters}>
         {FILTERS.map((f) => (
-          <TouchableOpacity
+          <PressableScale
             key={f.key}
             style={[styles.chip, filter === f.key && styles.chipActive]}
             onPress={() => setFilter(f.key)}
           >
             <Text
-              style={[
-                styles.chipText,
-                filter === f.key && styles.chipTextActive,
-              ]}
+              style={[styles.chipText, filter === f.key && styles.chipTextActive]}
             >
               {f.label}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         ))}
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 32 }} color="#3b82f6" />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
       ) : (
         <FlatList
           data={packages}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={
             packages.length === 0 ? styles.emptyWrap : styles.list
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>Nenhum pacote nesta categoria.</Text>
+            <FadeInView style={{ alignItems: 'center' }}>
+              <Ionicons name="file-tray-outline" size={52} color={colors.textFaint} />
+              <Text style={styles.empty}>Nenhum pacote nesta categoria.</Text>
+            </FadeInView>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.item}
-              onPress={() =>
-                navigation.navigate('PackageDetail', { packageId: item.id })
-              }
-            >
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: STATUS_COLOR[item.status] },
-                ]}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemName}>
-                  {item.recipient_name || 'Sem nome'}
-                </Text>
-                <Text style={styles.itemAddress} numberOfLines={1}>
-                  {item.address || 'Sem endereço'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
+          renderItem={({ item, index }) => {
+            const meta = statusMeta[item.status]
+            return (
+              <FadeInView delay={index * 50}>
+                <PressableScale
+                  style={styles.item}
+                  onPress={() =>
+                    navigation.navigate('PackageDetail', { packageId: item.id })
+                  }
+                >
+                  <View style={[styles.statusIcon, { backgroundColor: meta.soft }]}>
+                    <Ionicons
+                      name={meta.icon as IoniconName}
+                      size={18}
+                      color={meta.color}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemName} numberOfLines={1}>
+                      {item.recipient_name || 'Sem nome'}
+                    </Text>
+                    <Text style={styles.itemAddr} numberOfLines={1}>
+                      {item.address || 'Sem endereço'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+                </PressableScale>
+              </FadeInView>
+            )
+          }}
         />
       )}
     </View>
@@ -124,37 +134,50 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  header: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
   filters: {
     flexDirection: 'row',
-    padding: 12,
-    gap: 8,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f1f5f9',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    ...shadow.soft,
   },
-  chipActive: { backgroundColor: '#3b82f6' },
-  chipText: { color: '#475569', fontSize: 13, fontWeight: '500' },
+  chipActive: { backgroundColor: colors.primary },
+  chipText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: '#fff' },
-  list: { padding: 12 },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   emptyWrap: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { color: '#94a3b8' },
+  empty: { color: colors.textFaint, marginTop: 10 },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 8,
-    gap: 12,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
+    ...shadow.soft,
   },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  itemName: { fontSize: 15, fontWeight: '600', color: '#0f172a' },
-  itemAddress: { fontSize: 13, color: '#64748b', marginTop: 2 },
+  statusIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemName: { fontSize: 15, fontWeight: '700', color: colors.text },
+  itemAddr: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
 })

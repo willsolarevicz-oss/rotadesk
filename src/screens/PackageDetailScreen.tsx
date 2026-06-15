@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   Alert,
   Linking,
 } from 'react-native'
 import MapView, { Marker } from 'react-native-maps'
+import { Ionicons } from '@expo/vector-icons'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../types/navigation'
 import type { Package, PackageStatus } from '../types/package'
@@ -17,19 +17,13 @@ import { getPackage, updatePackageStatus } from '../services/packages'
 import { sendWhatsApp } from '../services/notifications'
 import { buildWhatsAppMessage } from '../utils/messages'
 import { buildNavigationUrl } from '../utils/maps'
+import { colors, spacing, radius, shadow, statusMeta } from '../theme'
+import FadeInView from '../components/FadeInView'
+import PressableScale from '../components/PressableScale'
+import GradientButton from '../components/GradientButton'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PackageDetail'>
-
-const STATUS_LABEL: Record<PackageStatus, string> = {
-  pending: 'Pendente',
-  delivered: 'Entregue',
-  failed: 'Não entregue',
-}
-const STATUS_COLOR: Record<PackageStatus, string> = {
-  pending: '#f59e0b',
-  delivered: '#22c55e',
-  failed: '#ef4444',
-}
+type IoniconName = keyof typeof Ionicons.glyphMap
 
 export default function PackageDetailScreen({ route }: Props) {
   const { packageId } = route.params
@@ -70,7 +64,7 @@ export default function PackageDetailScreen({ route }: Props) {
         pkg.recipient_phone,
         buildWhatsAppMessage(pkg.recipient_name ?? '', kind)
       )
-      Alert.alert('Enviado ✅', 'Mensagem enviada no WhatsApp.')
+      Alert.alert('Enviado', 'Mensagem enviada no WhatsApp.')
     } catch (e) {
       Alert.alert('Erro ao enviar', (e as Error).message)
     } finally {
@@ -92,7 +86,7 @@ export default function PackageDetailScreen({ route }: Props) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )
   }
@@ -100,15 +94,19 @@ export default function PackageDetailScreen({ route }: Props) {
   if (!pkg) {
     return (
       <View style={styles.center}>
-        <Text>Pacote não encontrado.</Text>
+        <Text style={{ color: colors.textMuted }}>Pacote não encontrado.</Text>
       </View>
     )
   }
 
+  const meta = statusMeta[pkg.status]
   const hasCoords = pkg.latitude != null && pkg.longitude != null
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 32 }}
+    >
       {hasCoords ? (
         <MapView
           style={styles.map}
@@ -130,124 +128,210 @@ export default function PackageDetailScreen({ route }: Props) {
         </MapView>
       ) : (
         <View style={[styles.map, styles.noMap]}>
+          <Ionicons name="map-outline" size={40} color={colors.textFaint} />
           <Text style={styles.noMapText}>Sem localização no mapa</Text>
         </View>
       )}
 
-      <View style={styles.body}>
-        <View
-          style={[styles.badge, { backgroundColor: STATUS_COLOR[pkg.status] }]}
-        >
-          <Text style={styles.badgeText}>{STATUS_LABEL[pkg.status]}</Text>
+      <FadeInView style={styles.body}>
+        <View style={[styles.badge, { backgroundColor: meta.soft }]}>
+          <Ionicons
+            name={meta.icon as IoniconName}
+            size={14}
+            color={meta.color}
+          />
+          <Text style={[styles.badgeText, { color: meta.color }]}>
+            {meta.label}
+          </Text>
         </View>
 
         <Text style={styles.name}>{pkg.recipient_name || 'Sem nome'}</Text>
-        <Text style={styles.address}>{pkg.address}</Text>
-        {pkg.complement ? (
-          <Text style={styles.meta}>Complemento: {pkg.complement}</Text>
-        ) : null}
-        {pkg.route ? <Text style={styles.meta}>Rota: {pkg.route}</Text> : null}
-        <Text style={styles.meta}>Código: {pkg.tracking_code}</Text>
-        {pkg.notes ? <Text style={styles.meta}>Obs: {pkg.notes}</Text> : null}
+        <Text style={styles.address}>{pkg.address || 'Sem endereço'}</Text>
 
-        <TouchableOpacity style={styles.navButton} onPress={openNavigation}>
-          <Text style={styles.navButtonText}>🧭 Navegar até o endereço</Text>
-        </TouchableOpacity>
-
-        <View style={styles.row}>
-          <TouchableOpacity
-            style={[styles.smallButton, styles.whatsapp]}
-            onPress={() => notify('on_the_way')}
-            disabled={working}
-          >
-            <Text style={styles.smallButtonText}>Avisar: a caminho</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.smallButton, styles.whatsapp]}
-            onPress={() => notify('delivered')}
-            disabled={working}
-          >
-            <Text style={styles.smallButtonText}>Avisar: entregue</Text>
-          </TouchableOpacity>
+        <View style={styles.infoCard}>
+          <InfoRow icon="pricetag-outline" label="Código" value={pkg.tracking_code} />
+          <InfoRow icon="home-outline" label="Complemento" value={pkg.complement} />
+          <InfoRow icon="map-outline" label="Rota" value={pkg.route} />
+          <InfoRow icon="call-outline" label="Telefone" value={pkg.recipient_phone} />
+          <InfoRow
+            icon="document-text-outline"
+            label="Observações"
+            value={pkg.notes}
+            last
+          />
         </View>
 
+        <GradientButton
+          title="Navegar até o endereço"
+          onPress={openNavigation}
+          style={{ marginTop: spacing.lg }}
+        />
+
+        {pkg.recipient_phone ? (
+          <View style={styles.row}>
+            <ActionButton
+              flex
+              color="#25D366"
+              icon="logo-whatsapp"
+              label="A caminho"
+              onPress={() => notify('on_the_way')}
+              disabled={working}
+            />
+            <ActionButton
+              flex
+              color="#25D366"
+              icon="logo-whatsapp"
+              label="Entregue"
+              onPress={() => notify('delivered')}
+              disabled={working}
+            />
+          </View>
+        ) : null}
+
         <View style={styles.row}>
-          <TouchableOpacity
-            style={[styles.statusButton, { backgroundColor: '#22c55e' }]}
+          <ActionButton
+            flex
+            color={colors.delivered}
+            icon="checkmark-circle"
+            label="Entregue"
             onPress={() => changeStatus('delivered')}
             disabled={working}
-          >
-            <Text style={styles.statusButtonText}>✓ Entregue</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.statusButton, { backgroundColor: '#ef4444' }]}
+          />
+          <ActionButton
+            flex
+            color={colors.failed}
+            icon="close-circle"
+            label="Não entregue"
             onPress={() => changeStatus('failed')}
             disabled={working}
-          >
-            <Text style={styles.statusButtonText}>✗ Não entregue</Text>
-          </TouchableOpacity>
+          />
         </View>
 
         {pkg.status !== 'pending' ? (
-          <TouchableOpacity
+          <PressableScale
             style={styles.reopen}
             onPress={() => changeStatus('pending')}
             disabled={working}
           >
             <Text style={styles.reopenText}>Reabrir como pendente</Text>
-          </TouchableOpacity>
+          </PressableScale>
         ) : null}
-      </View>
+      </FadeInView>
     </ScrollView>
   )
 }
 
+function InfoRow({
+  icon,
+  label,
+  value,
+  last,
+}: {
+  icon: IoniconName
+  label: string
+  value: string | null
+  last?: boolean
+}) {
+  if (!value) return null
+  return (
+    <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
+      <Ionicons name={icon} size={18} color={colors.textMuted} />
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue} numberOfLines={2}>
+        {value}
+      </Text>
+    </View>
+  )
+}
+
+function ActionButton({
+  color,
+  icon,
+  label,
+  onPress,
+  disabled,
+  flex,
+}: {
+  color: string
+  icon: IoniconName
+  label: string
+  onPress: () => void
+  disabled?: boolean
+  flex?: boolean
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.actionBtn, { backgroundColor: color }, flex && { flex: 1 }]}
+    >
+      <Ionicons name={icon} size={18} color="#fff" />
+      <Text style={styles.actionText}>{label}</Text>
+    </PressableScale>
+  )
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+  },
   map: { width: '100%', height: 240 },
   noMap: {
     backgroundColor: '#e2e8f0',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 6,
   },
-  noMapText: { color: '#64748b' },
-  body: { padding: 16 },
+  noMapText: { color: colors.textMuted },
+  body: { padding: spacing.lg },
   badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    marginBottom: spacing.sm,
   },
-  badgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  name: { fontSize: 20, fontWeight: '700', color: '#0f172a' },
-  address: { fontSize: 15, color: '#334155', marginTop: 4 },
-  meta: { fontSize: 13, color: '#64748b', marginTop: 4 },
-  navButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 10,
-    padding: 14,
+  badgeText: { fontWeight: '700', fontSize: 12 },
+  name: { fontSize: 22, fontWeight: '800', color: colors.text },
+  address: { fontSize: 15, color: colors.textMuted, marginTop: 4 },
+  infoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.lg,
+    ...shadow.soft,
+  },
+  infoRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  navButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  row: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  smallButton: {
-    flex: 1,
-    borderRadius: 8,
-    padding: 12,
+  infoLabel: { fontSize: 13, color: colors.textMuted, width: 92 },
+  infoValue: { fontSize: 14, color: colors.text, flex: 1, fontWeight: '500' },
+  row: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
+  actionBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radius.md,
+    paddingVertical: 14,
   },
-  whatsapp: { backgroundColor: '#25D366' },
-  smallButtonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  statusButton: {
-    flex: 1,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
+  actionText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  reopen: { alignItems: 'center', marginTop: spacing.lg, padding: 8 },
+  reopenText: {
+    color: colors.textMuted,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
-  statusButtonText: { color: '#fff', fontWeight: '700' },
-  reopen: { alignItems: 'center', marginTop: 16 },
-  reopenText: { color: '#64748b', textDecorationLine: 'underline' },
 })
