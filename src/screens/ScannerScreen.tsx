@@ -27,53 +27,81 @@ export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions()
   const [scanned, setScanned] = useState(false)
   const [reading, setReading] = useState(false)
+  const [failedRead, setFailedRead] = useState(false)
+  const [lastCode, setLastCode] = useState('')
   const [manual, setManual] = useState(false)
   const [code, setCode] = useState('')
 
   async function handleScanned(result: { type: string; data: string }) {
-    if (scanned || reading) return
+    if (scanned || reading || failedRead) return
     setScanned(true)
     setReading(true)
+    setLastCode(result.data)
 
-    let prefill: PackagePrefill | undefined
+    let data: Partial<{
+      recipient_name: string
+      cep: string
+      street: string
+      number: string
+      neighborhood: string
+      city: string
+      state: string
+      phone: string
+    }> | null = null
+
     try {
-      const photo = await cameraRef.current?.takePictureAsync({
-        quality: 0.5,
-        skipProcessing: true,
-      })
+      // pequena pausa pra a câmera focar antes da foto
+      await new Promise((r) => setTimeout(r, 400))
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 })
       if (photo?.uri) {
         const shrunk = await ImageManipulator.manipulateAsync(
           photo.uri,
-          [{ resize: { width: 1000 } }],
-          {
-            compress: 0.6,
-            format: ImageManipulator.SaveFormat.JPEG,
-            base64: true,
-          }
+          [{ resize: { width: 1100 } }],
+          { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
         )
         if (shrunk.base64) {
-          const data = await readLabel(shrunk.base64)
-          if (data) {
-            prefill = {
-              recipient_name: data.recipient_name,
-              recipient_phone: data.phone,
-              cep: data.cep,
-              street: data.street,
-              number: data.number,
-              neighborhood: data.neighborhood,
-              city: data.city,
-              state: data.state,
-            }
-          }
+          data = await readLabel(shrunk.base64)
         }
       }
     } catch {
-      // segue sem preenchimento automático
+      // ignora: trata como leitura falha abaixo
     }
-
     setReading(false)
-    navigation.navigate('PackageForm', { trackingCode: result.data, prefill })
-    setTimeout(() => setScanned(false), 1500)
+
+    // considera "leu" se veio nome OU rua OU CEP
+    const goodRead = !!(
+      data &&
+      (data.recipient_name?.trim() || data.street?.trim() || data.cep?.trim())
+    )
+
+    if (goodRead) {
+      const prefill: PackagePrefill = {
+        recipient_name: data!.recipient_name,
+        recipient_phone: data!.phone,
+        cep: data!.cep,
+        street: data!.street,
+        number: data!.number,
+        neighborhood: data!.neighborhood,
+        city: data!.city,
+        state: data!.state,
+      }
+      navigation.navigate('PackageForm', { trackingCode: result.data, prefill })
+      setTimeout(() => setScanned(false), 1500)
+    } else {
+      // não conseguiu ler o endereço: avisa e deixa reenquadrar
+      setFailedRead(true)
+    }
+  }
+
+  function retry() {
+    setFailedRead(false)
+    setScanned(false)
+  }
+
+  function continueWithoutRead() {
+    navigation.navigate('PackageForm', { trackingCode: lastCode })
+    setFailedRead(false)
+    setScanned(false)
   }
 
   const goToManual = useCallback(() => {
@@ -175,7 +203,7 @@ export default function ScannerScreen() {
           <View style={[styles.corner, styles.br]} />
         </View>
         <Text style={styles.overlayText}>
-          Aponte para a etiqueta do pacote
+          Deixe a etiqueta inteira no quadro (código + endereço)
         </Text>
         <PressableScale
           style={styles.manualButton}
@@ -187,9 +215,27 @@ export default function ScannerScreen() {
       </View>
 
       {reading ? (
-        <View style={styles.readingOverlay}>
+        <View style={styles.dimOverlay}>
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.readingText}>Lendo etiqueta...</Text>
+          <Text style={styles.bigText}>Lendo etiqueta...</Text>
+        </View>
+      ) : null}
+
+      {failedRead ? (
+        <View style={styles.dimOverlay}>
+          <Ionicons name="scan-outline" size={52} color="#fff" />
+          <Text style={styles.bigText}>Não consegui ler o endereço</Text>
+          <Text style={styles.failHint}>
+            Afaste o celular e deixe a etiqueta INTEIRA no quadro (nome +
+            endereço), com boa luz e firme.
+          </Text>
+          <PressableScale style={styles.retryBtn} onPress={retry}>
+            <Ionicons name="refresh" size={18} color="#fff" />
+            <Text style={styles.retryText}>Tentar de novo</Text>
+          </PressableScale>
+          <PressableScale onPress={continueWithoutRead} style={{ padding: 10 }}>
+            <Text style={styles.failLink}>Continuar sem preencher</Text>
+          </PressableScale>
         </View>
       ) : null}
     </View>
@@ -279,12 +325,32 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   manualButtonText: { color: colors.text, fontWeight: '700' },
-  readingOverlay: {
+  dimOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15,23,42,0.78)',
+    backgroundColor: 'rgba(15,23,42,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: spacing.xl,
     gap: spacing.md,
   },
-  readingText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  bigText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  failHint: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 8,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+    marginTop: spacing.sm,
+  },
+  retryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  failLink: { color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
 })
