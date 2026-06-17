@@ -1,41 +1,47 @@
-# 📦 Rotadesk
+# Rotadesk
 
-App mobile para **entregadores** organizarem suas entregas do dia. O entregador
-faz login por telefone, **escaneia o código de barras** de cada pacote, cadastra
-os dados de entrega, vê o endereço **no mapa**, navega até o destino e marca cada
-entrega como concluída — podendo ainda **avisar o destinatário por WhatsApp**.
+Aplicativo mobile para entregadores organizarem as entregas do dia. O entregador
+faz login por e-mail, escaneia o código de barras de cada pacote, cadastra os
+dados de entrega (com leitura automática da etiqueta por IA e preenchimento de
+endereço por CEP), visualiza o destino no mapa, navega até o local e marca cada
+entrega como concluída ou não entregue, podendo ainda avisar o destinatário por
+WhatsApp.
 
-## ✨ Funcionalidades
+## Funcionalidades
 
-- 🔐 Login por e-mail com código OTP (Supabase Auth, sem custo)
-- 📷 Scanner de código de barras (câmera) com fallback de digitação manual
-- 📝 Cadastro de pacote: destinatário, telefone, endereço, complemento, rota, observações
-- 🗺️ Geocoding do endereço (Google) + mapa embutido com marcador
-- 🧭 Botão "Navegar" que abre o Google Maps
-- ✅ Marcar entrega como entregue / não entregue
-- 💬 Aviso ao destinatário via WhatsApp (Z-API)
-- 📊 Home com estatísticas do dia e lista de pendentes
-- 🕓 Histórico com filtros por status
+- Login por e-mail com código de verificação (Supabase Auth)
+- Scanner de código de barras pela câmera, com digitação manual como alternativa
+- Leitura da etiqueta por IA (opcional): foto da etiqueta preenche nome e endereço
+- Preenchimento de endereço pelo CEP (ViaCEP)
+- Geocoding do endereço (Google) e mapa embutido com marcador
+- Botão de navegação que abre o Google Maps
+- Baixa de entrega: entregue ou não entregue, com data e hora
+- Aviso ao destinatário por WhatsApp (Z-API)
+- Tela inicial com estatísticas do dia e lista de pendentes
+- Histórico com filtros por status
 
-## 🧱 Stack
+## Stack
 
-- **App:** Expo SDK 54, React Native 0.81, TypeScript
-- **Navegação:** React Navigation 7
-- **Backend:** Supabase (Auth, Postgres + RLS, Edge Functions)
-- **Scanner:** expo-camera
-- **Mapa:** react-native-maps + Google Geocoding API
-- **WhatsApp:** Edge Function `send-whatsapp` (Z-API)
-- **Testes:** Jest
+- Aplicativo: Expo SDK 54, React Native 0.81, TypeScript
+- Navegação: React Navigation 7
+- Backend: Supabase (Auth, PostgreSQL com RLS, Edge Functions em Deno)
+- Scanner: expo-camera
+- Leitura de etiqueta: Claude Haiku (visão), via Edge Function
+- Endereço: ViaCEP e Google Geocoding
+- Mapa: react-native-maps
+- WhatsApp: Edge Function `send-whatsapp` (Z-API)
+- Interface: expo-linear-gradient, @expo/vector-icons, API Animated
+- Testes: Jest
 
-## ✅ Pré-requisitos
+## Pré-requisitos
 
-- Node 18+
-- Conta no [Supabase](https://supabase.com) (projeto já linkado: `wpngyexzekruzmukcljo`)
-- Chave da **Google Maps API** com *Maps SDK (Android/iOS)* e *Geocoding API* ativados
-- (Opcional, para WhatsApp) conta na **Z-API**
-- App **Expo Go** no celular (ou um *development build*)
+- Node 18 ou superior
+- Conta no [Supabase](https://supabase.com)
+- Chave da Google Maps API com Maps SDK (Android/iOS) e Geocoding API ativados
+- Aplicativo Expo Go no celular, ou um development build
+- Opcional: conta na Anthropic (leitura por IA) e na Z-API (WhatsApp)
 
-## 🚀 Como rodar
+## Como rodar
 
 ```bash
 # 1. Instalar dependências
@@ -43,7 +49,7 @@ npm install
 
 # 2. Configurar variáveis de ambiente
 cp .env.example .env
-# edite .env com suas chaves:
+# edite o .env com:
 #   EXPO_PUBLIC_SUPABASE_URL
 #   EXPO_PUBLIC_SUPABASE_ANON_KEY
 #   EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -52,109 +58,102 @@ cp .env.example .env
 npm start
 ```
 
-Leia o QR code com o **Expo Go**. Para builds standalone (Android), cole a chave
-do Google Maps também no `app.json` (`android.config.googleMaps.apiKey`).
+Leia o QR code com o Expo Go. Para builds standalone (Android), inclua a chave do
+Google Maps também no `app.json` (`android.config.googleMaps.apiKey`).
 
-> **Mapa:** em Expo Go o mapa usa Google no Android e Apple no iOS. Para o mapa
-> Google em build standalone iOS/Android, a chave no `app.json` é obrigatória.
+## Banco de dados
 
-## 🗄️ Banco de dados
-
-Aplique a migration no projeto Supabase:
-
-```bash
-npx supabase db push
-```
-
-…ou cole o conteúdo de `supabase/migrations/20260612000000_create_packages.sql`
-no **SQL Editor** do dashboard. A tabela `packages` usa **RLS**: cada entregador
-só enxerga os próprios pacotes.
+Aplique a migration no projeto Supabase com `npx supabase db push`, ou cole o
+conteúdo de `supabase/migrations/20260612000000_create_packages.sql` no SQL
+Editor do dashboard. A tabela `packages` usa RLS: cada entregador acessa apenas
+os próprios pacotes.
 
 ### Tabela `packages`
 
 | Coluna | Tipo | Descrição |
 |---|---|---|
-| id | uuid | PK |
-| user_id | uuid | dono (entregador) |
-| tracking_code | text | código do código de barras |
-| recipient_name | text | destinatário |
-| recipient_phone | text | telefone (WhatsApp) |
-| address | text | endereço |
-| complement | text | complemento |
-| route | text | rota |
-| latitude / longitude | float8 | coordenadas |
+| id | uuid | Identificador único |
+| user_id | uuid | Dono do registro (entregador) |
+| tracking_code | text | Código lido do código de barras |
+| recipient_name | text | Nome do destinatário |
+| recipient_phone | text | Telefone do destinatário |
+| address | text | Endereço |
+| complement | text | Complemento |
+| route | text | Rota |
+| latitude / longitude | float8 | Coordenadas |
 | status | text | pending / delivered / failed |
-| notes | text | observações |
-| created_at / delivered_at | timestamptz | datas |
+| notes | text | Observações |
+| created_at / delivered_at | timestamptz | Datas |
 
-## 💬 WhatsApp (Edge Function)
+## Autenticação por e-mail
 
-A função `supabase/functions/send-whatsapp` usa a Z-API. Configure os secrets:
+O login usa código de verificação enviado por e-mail (sem gateway de SMS). No
+dashboard do Supabase, em Authentication, Providers, mantenha o provedor Email
+habilitado. Para o usuário receber o código (em vez de um link), edite o template
+em Authentication, Email Templates, Magic Link, incluindo o token:
 
-```bash
-npx supabase secrets set ZAPI_INSTANCE_ID=... ZAPI_TOKEN=... ZAPI_CLIENT_TOKEN=...
-npx supabase functions deploy send-whatsapp
+```
+Seu código de acesso é: {{ .Token }}
 ```
 
-## 📸 Leitura de etiqueta por IA (opcional)
+## Leitura de etiqueta por IA (opcional)
 
-Ao escanear, o app tira uma foto da etiqueta e usa o **Claude Haiku** (visão) para
-preencher nome e endereço automaticamente. É **opcional**: sem isso, o cadastro
-segue manual (com auto-preenchimento por CEP). Para ativar:
-
-1. Crie uma chave de API em [console.anthropic.com](https://console.anthropic.com)
-   (defina um **limite de gasto** para não ter surpresa — custa ~centavos por foto).
-2. Configure o secret e faça o deploy da função:
+Ao escanear, o aplicativo tira uma foto da etiqueta e usa o Claude Haiku para
+extrair nome e endereço. É opcional: sem a função no ar, o cadastro segue manual
+com preenchimento por CEP. Para ativar, crie uma chave em
+[console.anthropic.com](https://console.anthropic.com) (defina um limite de gasto;
+o custo é de centavos por foto), configure o secret e faça o deploy da função:
 
 ```bash
 npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 npx supabase functions deploy read-label
 ```
 
-A chave fica **no servidor** (secret do Supabase), nunca no app. Se a função não
-estiver no ar, o app simplesmente não preenche sozinho — sem quebrar.
+A chave fica no servidor (secret do Supabase), nunca no aplicativo.
 
-## 🔐 Autenticação (OTP por e-mail)
+## WhatsApp (opcional)
 
-O login é por **e-mail** (grátis, sem gateway de SMS). No dashboard do Supabase,
-em *Authentication → Providers*, deixe o **Email** habilitado. Para o usuário
-receber o **código** (e não um link), edite o template em *Authentication →
-Email Templates → Magic Link* incluindo o token, por exemplo:
+A função `supabase/functions/send-whatsapp` usa a Z-API. Configure os secrets e
+faça o deploy:
 
-```
-Seu código de acesso é: {{ .Token }}
+```bash
+npx supabase secrets set ZAPI_INSTANCE_ID=... ZAPI_TOKEN=... ZAPI_CLIENT_TOKEN=...
+npx supabase functions deploy send-whatsapp
 ```
 
-## 🧪 Testes
+## Testes
 
 ```bash
 npm test
 ```
 
-Cobrem a lógica pura: formatação de telefone, geocoding (fetch mockado),
-contagem de stats, mensagens de WhatsApp e URL de navegação.
+Cobrem a lógica pura: formatação de telefone, geocoding, busca de CEP, contagem
+de estatísticas, mensagens de WhatsApp e URL de navegação. A verificação de tipos
+roda com `npx tsc --noEmit`.
 
-## 📁 Estrutura
+## Estrutura
 
 ```
 src/
-├── navigation/   RootNavigator, AuthStack, AppNavigator, AppTabs
-├── screens/      Login, Home, Scanner, PackageForm, PackageDetail, History
-├── services/     supabase, packages, geocoding, notifications
-├── utils/        phone, stats, messages, maps
-└── types/        navigation, package
+  navigation/   RootNavigator, AuthStack, AppNavigator, AppTabs
+  screens/      Login, Home, Scanner, PackageForm, PackageDetail, History
+  services/     supabase, packages, geocoding, cep, labelReader, notifications
+  components/   GradientButton, PressableScale, FadeInView
+  utils/        phone, stats, messages, maps
+  types/        navigation, package
+  theme.ts      design system (cores, espaçamentos, sombras)
 supabase/
-├── functions/    send-whatsapp (Edge Function)
-└── migrations/   create_packages.sql
+  functions/    read-label, send-whatsapp (Edge Functions, Deno)
+  migrations/   create_packages.sql
 ```
 
-## 🗺️ Roadmap
+## Roadmap
 
-- Otimização automática da ordem de entrega (rota ótima)
+- Captura de etiqueta sem código de barras
+- Otimização automática da ordem de entrega
 - Foto de comprovação de entrega
-- Integração com APIs de transportadoras
 - Painel web administrativo
 
-## 📄 Licença
+## Licença
 
 MIT

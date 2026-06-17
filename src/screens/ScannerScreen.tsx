@@ -21,22 +21,23 @@ import PressableScale from '../components/PressableScale'
 import GradientButton from '../components/GradientButton'
 
 type Nav = NativeStackNavigationProp<AppStackParamList>
+type ReadStage = 'idle' | 'detected' | 'reading'
 
 export default function ScannerScreen() {
   const navigation = useNavigation<Nav>()
   const cameraRef = useRef<CameraView>(null)
   const [permission, requestPermission] = useCameraPermissions()
   const [scanned, setScanned] = useState(false)
-  const [reading, setReading] = useState(false)
+  const [stage, setStage] = useState<ReadStage>('idle')
   const [failedRead, setFailedRead] = useState(false)
   const [lastCode, setLastCode] = useState('')
   const [manual, setManual] = useState(false)
   const [code, setCode] = useState('')
 
   async function handleScanned(result: { type: string; data: string }) {
-    if (scanned || reading || failedRead) return
+    if (scanned || stage !== 'idle' || failedRead) return
     setScanned(true)
-    setReading(true)
+    setStage('detected')
     setLastCode(result.data)
 
     let data: Partial<{
@@ -52,9 +53,10 @@ export default function ScannerScreen() {
     }> | null = null
 
     try {
-      // pequena pausa pra a câmera focar antes da foto
-      await new Promise((r) => setTimeout(r, 400))
+      // mostra "Código detectado" enquanto a câmera foca
+      await new Promise((r) => setTimeout(r, 600))
       const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 })
+      setStage('reading')
       if (photo?.uri) {
         const shrunk = await ImageManipulator.manipulateAsync(
           photo.uri,
@@ -78,13 +80,13 @@ export default function ScannerScreen() {
     } catch {
       // ignora: trata como leitura falha abaixo
     }
-    setReading(false)
 
-    // considera "leu" se veio nome OU rua OU CEP
     const goodRead = !!(
       data &&
       (data.recipient_name?.trim() || data.street?.trim() || data.cep?.trim())
     )
+
+    setStage('idle')
 
     if (goodRead) {
       const prefill: PackagePrefill = {
@@ -101,7 +103,6 @@ export default function ScannerScreen() {
       navigation.navigate('PackageForm', { trackingCode: result.data, prefill })
       setTimeout(() => setScanned(false), 1500)
     } else {
-      // não conseguiu ler o endereço: avisa e deixa reenquadrar
       setFailedRead(true)
     }
   }
@@ -227,10 +228,19 @@ export default function ScannerScreen() {
         </PressableScale>
       </View>
 
-      {reading ? (
+      {stage === 'detected' ? (
+        <View style={styles.dimOverlay}>
+          <Ionicons name="checkmark-circle" size={60} color={colors.delivered} />
+          <Text style={styles.bigText}>Código detectado</Text>
+          <Text style={styles.subText}>Preparando a leitura da etiqueta...</Text>
+        </View>
+      ) : null}
+
+      {stage === 'reading' ? (
         <View style={styles.dimOverlay}>
           <ActivityIndicator size="large" color="#fff" />
           <Text style={styles.bigText}>Lendo etiqueta...</Text>
+          <Text style={styles.subText}>Extraindo nome e endereço</Text>
         </View>
       ) : null}
 
@@ -238,7 +248,7 @@ export default function ScannerScreen() {
         <View style={styles.dimOverlay}>
           <Ionicons name="scan-outline" size={52} color="#fff" />
           <Text style={styles.bigText}>Não consegui ler o endereço</Text>
-          <Text style={styles.failHint}>
+          <Text style={styles.subText}>
             Afaste o celular e deixe a etiqueta INTEIRA no quadro (nome +
             endereço), com boa luz e firme.
           </Text>
@@ -344,11 +354,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  bigText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  failHint: {
-    color: 'rgba(255,255,255,0.85)',
+  bigText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  subText: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
@@ -362,7 +378,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderRadius: radius.pill,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   retryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   failLink: { color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
