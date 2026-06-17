@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { AppStackParamList, PackagePrefill } from '../types/navigation'
 import { readLabel } from '../services/labelReader'
+import { lookupCep } from '../services/cep'
 import { colors, spacing, radius } from '../theme'
 import PressableScale from '../components/PressableScale'
 import GradientButton from '../components/GradientButton'
@@ -43,6 +44,7 @@ export default function ScannerScreen() {
       cep: string
       street: string
       number: string
+      complement: string
       neighborhood: string
       city: string
       state: string
@@ -61,6 +63,16 @@ export default function ScannerScreen() {
         )
         if (shrunk.base64) {
           data = await readLabel(shrunk.base64)
+          // cruza com o ViaCEP: rua/bairro/cidade do CEP são mais confiáveis que o OCR
+          if (data?.cep) {
+            const cepInfo = await lookupCep(data.cep)
+            if (cepInfo) {
+              data.street = cepInfo.street || data.street
+              data.neighborhood = cepInfo.neighborhood || data.neighborhood
+              data.city = cepInfo.city || data.city
+              data.state = cepInfo.state || data.state
+            }
+          }
         }
       }
     } catch {
@@ -81,6 +93,7 @@ export default function ScannerScreen() {
         cep: data!.cep,
         street: data!.street,
         number: data!.number,
+        complement: data!.complement,
         neighborhood: data!.neighborhood,
         city: data!.city,
         state: data!.state,

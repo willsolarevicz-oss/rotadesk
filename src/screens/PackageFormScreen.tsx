@@ -36,7 +36,7 @@ export default function PackageFormScreen({ route, navigation }: Props) {
   const [neighborhood, setNeighborhood] = useState(p.neighborhood ?? '')
   const [city, setCity] = useState(p.city ?? '')
   const [uf, setUf] = useState(p.state ?? '')
-  const [complement, setComplement] = useState('')
+  const [complement, setComplement] = useState(p.complement ?? '')
   const [routeName, setRouteName] = useState('')
   const [notes, setNotes] = useState('')
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(

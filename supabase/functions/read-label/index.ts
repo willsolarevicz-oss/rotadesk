@@ -14,13 +14,17 @@ const corsHeaders = {
 const SYSTEM = `Você lê etiquetas de encomendas brasileiras e extrai os dados do DESTINATÁRIO (a pessoa que vai RECEBER o pacote, NÃO o remetente).
 
 Responda APENAS com um JSON válido, sem nenhum texto antes ou depois e sem crases, exatamente neste formato:
-{"recipient_name":"","cep":"","street":"","number":"","neighborhood":"","city":"","state":"","phone":""}
+{"recipient_name":"","cep":"","street":"","number":"","complement":"","neighborhood":"","city":"","state":"","phone":""}
 
 Regras:
 - Use string vazia "" para qualquer campo que você não encontre com certeza.
+- recipient_name: nome completo do destinatário.
 - cep: apenas os 8 dígitos, sem hífen.
+- street: SÓ o nome da rua/avenida (sem o número e sem o complemento).
+- number: SÓ o número do imóvel na rua (ex.: 245, 1000). Não confunda com o CEP nem com o número do apartamento.
+- complement: complemento ou referência, como "Apto 52", "Bloco B", "Casa 2", "Fundos" ou um ponto de referência. Se não houver, "".
 - state: a sigla da UF (ex.: SP).
-- number: apenas o número do endereço.
+- Leia o endereço com atenção e não troque o nome da rua pelo número.
 - Não invente dados. Em caso de dúvida entre remetente e destinatário, prefira o bloco do DESTINATÁRIO.`
 
 function json(obj: unknown, status: number) {
