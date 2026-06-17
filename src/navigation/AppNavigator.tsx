@@ -17,6 +17,7 @@ export default function AppNavigator() {
         headerTitleStyle: { color: colors.text, fontWeight: '700' },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.bg },
+        animation: 'slide_from_right',
       }}
     >
       <Stack.Screen
