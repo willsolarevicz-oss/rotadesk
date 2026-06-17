@@ -58,7 +58,7 @@ export default function ScannerScreen() {
       if (photo?.uri) {
         const shrunk = await ImageManipulator.manipulateAsync(
           photo.uri,
-          [{ resize: { width: 1100 } }],
+          [{ resize: { width: 1500 } }],
           { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
         )
         if (shrunk.base64) {

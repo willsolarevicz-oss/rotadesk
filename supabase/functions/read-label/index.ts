@@ -21,7 +21,7 @@ Regras:
 - recipient_name: nome completo do destinatário.
 - cep: apenas os 8 dígitos, sem hífen.
 - street: SÓ o nome da rua/avenida (sem o número e sem o complemento).
-- number: SÓ o número do imóvel na rua (ex.: 245, 1000). Não confunda com o CEP nem com o número do apartamento.
+- number: SÓ o número do imóvel na rua (ex.: 245, 1000). Não confunda com o CEP nem com o número do apartamento. Leia dígito por dígito com atenção — é o campo mais fácil de errar.
 - complement: complemento ou referência, como "Apto 52", "Bloco B", "Casa 2", "Fundos" ou um ponto de referência. Se não houver, "".
 - state: a sigla da UF (ex.: SP).
 - Leia o endereço com atenção e não troque o nome da rua pelo número.
