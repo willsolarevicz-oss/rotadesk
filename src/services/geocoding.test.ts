@@ -6,6 +6,15 @@ describe('geocodeAddress', () => {
     global.fetch = originalFetch
   })
 
+  it('usa o geocoder gratuito (Nominatim) quando responde', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      json: async () => [{ lat: '-23.55', lon: '-46.63' }],
+    }) as unknown as typeof fetch
+
+    const result = await geocodeAddress('Av. Paulista, 1000, São Paulo')
+    expect(result).toEqual({ latitude: -23.55, longitude: -46.63 })
+  })
+
   it('retorna coordenadas quando a API responde OK', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       json: async () => ({

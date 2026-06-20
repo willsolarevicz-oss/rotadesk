@@ -5,6 +5,7 @@ import type { AppTabsParamList } from '../types/navigation'
 import { colors } from '../theme'
 import HomeScreen from '../screens/HomeScreen'
 import ScannerScreen from '../screens/ScannerScreen'
+import RouteScreen from '../screens/RouteScreen'
 import HistoryScreen from '../screens/HistoryScreen'
 
 const Tab = createBottomTabNavigator<AppTabsParamList>()
@@ -47,6 +48,20 @@ export default function AppTabs() {
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'scan' : 'scan-outline'}
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Route"
+        component={RouteScreen}
+        options={{
+          title: 'Rota',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'map' : 'map-outline'}
               color={color}
               size={size}
             />

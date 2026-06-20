@@ -7,6 +7,7 @@ export type AuthStackParamList = {
 export type AppTabsParamList = {
   Home: undefined
   Scanner: undefined
+  Route: undefined
   History: undefined
 }
 

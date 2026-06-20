@@ -13,10 +13,11 @@ WhatsApp.
 - Scanner de código de barras pela câmera, com digitação manual como alternativa
 - Leitura da etiqueta por IA (opcional): foto da etiqueta preenche nome e endereço
 - Preenchimento de endereço pelo CEP (ViaCEP)
-- Geocoding do endereço (Google) e mapa embutido com marcador
+- Geocoding gratuito do endereço (OpenStreetMap/Nominatim; Google opcional) e mapa com marcador
 - Botão de navegação que abre o Google Maps
 - Edição e exclusão de pacotes
-- Ordenação da rota pelos pacotes mais próximos (GPS do entregador)
+- Rota otimizada automática (OSRM): aba Rota com a sequência das paradas (Parada 1, 2, 3...)
+- Ordenação rápida dos pendentes por proximidade na tela inicial (GPS)
 - Baixa de entrega: entregue ou não entregue, com data e hora
 - Foto de comprovação de entrega (Supabase Storage)
 - Modo offline: lista salva localmente e baixas sincronizadas ao reconectar
@@ -31,7 +32,8 @@ WhatsApp.
 - Backend: Supabase (Auth, PostgreSQL com RLS, Edge Functions em Deno)
 - Scanner: expo-camera
 - Leitura de etiqueta: Claude Haiku (visão), via Edge Function
-- Endereço: ViaCEP e Google Geocoding
+- Endereço: ViaCEP (CEP) e geocoding via OpenStreetMap/Nominatim (Google opcional)
+- Roteirização: OSRM (Open Source Routing Machine, servidor público)
 - Mapa: react-native-maps
 - Localização: expo-location
 - Comprovante: expo-image-picker e Supabase Storage
