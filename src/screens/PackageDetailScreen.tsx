@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../types/navigation'
 import type { Package, PackageStatus } from '../types/package'
-import { getPackage, updatePackageStatus } from '../services/packages'
+import { getPackage, updatePackageStatus, deletePackage } from '../services/packages'
 import { sendWhatsApp } from '../services/notifications'
 import { buildWhatsAppMessage } from '../utils/messages'
 import { buildNavigationUrl } from '../utils/maps'
@@ -25,7 +25,7 @@ import GradientButton from '../components/GradientButton'
 type Props = NativeStackScreenProps<AppStackParamList, 'PackageDetail'>
 type IoniconName = keyof typeof Ionicons.glyphMap
 
-export default function PackageDetailScreen({ route }: Props) {
+export default function PackageDetailScreen({ route, navigation }: Props) {
   const { packageId } = route.params
   const [pkg, setPkg] = useState<Package | null>(null)
   const [loading, setLoading] = useState(true)
@@ -70,6 +70,45 @@ export default function PackageDetailScreen({ route }: Props) {
     } finally {
       setWorking(false)
     }
+  }
+
+  function handleEdit() {
+    if (!pkg) return
+    navigation.navigate('PackageForm', {
+      trackingCode: pkg.tracking_code ?? '',
+      editId: pkg.id,
+      prefill: {
+        recipient_name: pkg.recipient_name ?? '',
+        recipient_phone: pkg.recipient_phone ?? '',
+        street: pkg.address ?? '',
+        complement: pkg.complement ?? '',
+        route: pkg.route ?? '',
+        notes: pkg.notes ?? '',
+      },
+    })
+  }
+
+  function handleDelete() {
+    if (!pkg) return
+    Alert.alert(
+      'Excluir pacote',
+      'Esta ação não pode ser desfeita. Deseja excluir?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePackage(pkg.id)
+              navigation.goBack()
+            } catch (e) {
+              Alert.alert('Erro ao excluir', (e as Error).message)
+            }
+          },
+        },
+      ]
+    )
   }
 
   function openNavigation() {
@@ -216,6 +255,17 @@ export default function PackageDetailScreen({ route }: Props) {
             <Text style={styles.reopenText}>Reabrir como pendente</Text>
           </PressableScale>
         ) : null}
+
+        <View style={styles.row}>
+          <PressableScale style={styles.editBtn} onPress={handleEdit}>
+            <Ionicons name="create-outline" size={18} color={colors.primary} />
+            <Text style={styles.editText}>Editar</Text>
+          </PressableScale>
+          <PressableScale style={styles.deleteBtn} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={18} color={colors.failed} />
+            <Text style={styles.deleteText}>Excluir</Text>
+          </PressableScale>
+        </View>
       </FadeInView>
     </ScrollView>
   )
@@ -334,4 +384,28 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     fontWeight: '600',
   },
+  editBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radius.md,
+    paddingVertical: 13,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  editText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  deleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radius.md,
+    paddingVertical: 13,
+    borderWidth: 1.5,
+    borderColor: colors.failed,
+  },
+  deleteText: { color: colors.failed, fontWeight: '700', fontSize: 13 },
 })

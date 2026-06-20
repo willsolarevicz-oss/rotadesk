@@ -13,7 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../types/navigation'
 import { geocodeAddress } from '../services/geocoding'
 import { lookupCep } from '../services/cep'
-import { createPackage } from '../services/packages'
+import { createPackage, updatePackage } from '../services/packages'
 import { colors, spacing, radius, shadow } from '../theme'
 import FadeInView from '../components/FadeInView'
 import PressableScale from '../components/PressableScale'
@@ -22,7 +22,7 @@ import GradientButton from '../components/GradientButton'
 type Props = NativeStackScreenProps<AppStackParamList, 'PackageForm'>
 
 export default function PackageFormScreen({ route, navigation }: Props) {
-  const { trackingCode, prefill } = route.params
+  const { trackingCode, prefill, editId } = route.params
   const p = prefill ?? {}
   const autoFilled = Boolean(
     p.recipient_name || p.street || p.cep || p.city
@@ -37,8 +37,8 @@ export default function PackageFormScreen({ route, navigation }: Props) {
   const [city, setCity] = useState(p.city ?? '')
   const [uf, setUf] = useState(p.state ?? '')
   const [complement, setComplement] = useState(p.complement ?? '')
-  const [routeName, setRouteName] = useState('')
-  const [notes, setNotes] = useState('')
+  const [routeName, setRouteName] = useState(p.route ?? '')
+  const [notes, setNotes] = useState(p.notes ?? '')
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(
     null
   )
@@ -102,7 +102,9 @@ export default function PackageFormScreen({ route, navigation }: Props) {
     }
     setSaving(true)
     try {
-      const pkg = await createPackage({
+      // se não localizou no mapa, tenta geocodificar automaticamente
+      const pos = coords ?? (await geocodeAddress(fullAddress))
+      const input = {
         tracking_code: trackingCode,
         recipient_name: recipientName.trim(),
         recipient_phone: recipientPhone.trim(),
@@ -110,9 +112,12 @@ export default function PackageFormScreen({ route, navigation }: Props) {
         complement: complement.trim(),
         route: routeName.trim(),
         notes: notes.trim(),
-        latitude: coords?.latitude ?? null,
-        longitude: coords?.longitude ?? null,
-      })
+        latitude: pos?.latitude ?? null,
+        longitude: pos?.longitude ?? null,
+      }
+      const pkg = editId
+        ? await updatePackage(editId, input)
+        : await createPackage(input)
       navigation.replace('PackageDetail', { packageId: pkg.id })
     } catch (e) {
       Alert.alert('Erro ao salvar', (e as Error).message)
@@ -279,7 +284,7 @@ export default function PackageFormScreen({ route, navigation }: Props) {
         </Field>
 
         <GradientButton
-          title="Salvar pacote"
+          title={editId ? 'Salvar alterações' : 'Salvar pacote'}
           loading={saving}
           onPress={handleSave}
           style={{ marginTop: spacing.md }}

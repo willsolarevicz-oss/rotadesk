@@ -44,6 +44,25 @@ export async function createPackage(input: PackageInput): Promise<Package> {
   return data as Package
 }
 
+export async function updatePackage(
+  id: string,
+  input: PackageInput
+): Promise<Package> {
+  const { data, error } = await supabase
+    .from('packages')
+    .update(input)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as Package
+}
+
+export async function deletePackage(id: string): Promise<void> {
+  const { error } = await supabase.from('packages').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function updatePackageStatus(
   id: string,
   status: PackageStatus

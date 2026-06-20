@@ -5,7 +5,9 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
+  Alert,
 } from 'react-native'
+import * as Location from 'expo-location'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons'
@@ -18,6 +20,7 @@ import { Session } from '@supabase/supabase-js'
 import { supabase } from '../services/supabase'
 import { listPackages } from '../services/packages'
 import { computeStats, type PackageStats } from '../utils/stats'
+import { sortByProximity } from '../utils/distance'
 import type { Package } from '../types/package'
 import type { AppTabsParamList, AppStackParamList } from '../types/navigation'
 import { colors, spacing, radius, shadow, brandGradient } from '../theme'
@@ -43,6 +46,11 @@ export default function HomeScreen() {
     failed: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(
+    null
+  )
+  const [nearMode, setNearMode] = useState(false)
+  const [locating, setLocating] = useState(false)
 
   const load = useCallback(async () => {
     const {
@@ -71,7 +79,37 @@ export default function HomeScreen() {
     await supabase.auth.signOut()
   }
 
+  async function toggleNear() {
+    if (nearMode) {
+      setNearMode(false)
+      return
+    }
+    setLocating(true)
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert(
+          'Sem permissão',
+          'Permita o acesso à localização para ordenar a rota por proximidade.'
+        )
+        return
+      }
+      const pos = await Location.getCurrentPositionAsync({})
+      setOrigin({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      })
+      setNearMode(true)
+    } catch (e) {
+      Alert.alert('Erro de localização', (e as Error).message)
+    } finally {
+      setLocating(false)
+    }
+  }
+
   const pending = packages.filter((p) => p.status === 'pending')
+  const pendingSorted =
+    nearMode && origin ? sortByProximity(pending, origin) : pending
   const displayName = session?.user.email ?? 'Entregador'
 
   return (
@@ -122,7 +160,31 @@ export default function HomeScreen() {
         </View>
       </FadeInView>
 
-      <Text style={styles.sectionTitle}>Pacotes pendentes</Text>
+      <View style={styles.sectionRow}>
+        <Text style={styles.sectionTitle}>Pacotes pendentes</Text>
+        {pending.length > 1 ? (
+          <PressableScale
+            style={[styles.nearChip, nearMode && styles.nearChipActive]}
+            onPress={toggleNear}
+            disabled={locating}
+          >
+            {locating ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons
+                  name="navigate"
+                  size={14}
+                  color={nearMode ? '#fff' : colors.primary}
+                />
+                <Text style={[styles.nearChipText, nearMode && { color: '#fff' }]}>
+                  Mais perto
+                </Text>
+              </>
+            )}
+          </PressableScale>
+        ) : null}
+      </View>
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
@@ -136,7 +198,7 @@ export default function HomeScreen() {
         </FadeInView>
       ) : (
         <FlatList
-          data={pending}
+          data={pendingSorted}
           keyExtractor={(i) => i.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
@@ -233,14 +295,33 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '800' },
   statLabel: { fontSize: 12, color: colors.textMuted },
   statDivider: { width: 1, backgroundColor: colors.border, marginVertical: 4 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: spacing.xl,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  nearChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    minWidth: 96,
+    justifyContent: 'center',
+  },
+  nearChipActive: { backgroundColor: colors.primary },
+  nearChipText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
   list: { paddingHorizontal: spacing.lg, paddingBottom: 8 },
   itemCard: {
     flexDirection: 'row',

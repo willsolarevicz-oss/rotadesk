@@ -21,10 +21,12 @@ export type PackagePrefill = {
   neighborhood?: string
   city?: string
   state?: string
+  route?: string
+  notes?: string
 }
 
 export type AppStackParamList = {
   MainTabs: NavigatorScreenParams<AppTabsParamList> | undefined
-  PackageForm: { trackingCode: string; prefill?: PackagePrefill }
+  PackageForm: { trackingCode: string; prefill?: PackagePrefill; editId?: string }
   PackageDetail: { packageId: string }
 }
