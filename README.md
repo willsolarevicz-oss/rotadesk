@@ -15,7 +15,11 @@ WhatsApp.
 - Preenchimento de endereço pelo CEP (ViaCEP)
 - Geocoding do endereço (Google) e mapa embutido com marcador
 - Botão de navegação que abre o Google Maps
+- Edição e exclusão de pacotes
+- Ordenação da rota pelos pacotes mais próximos (GPS do entregador)
 - Baixa de entrega: entregue ou não entregue, com data e hora
+- Foto de comprovação de entrega (Supabase Storage)
+- Modo offline: lista salva localmente e baixas sincronizadas ao reconectar
 - Aviso ao destinatário por WhatsApp (Z-API)
 - Tela inicial com estatísticas do dia e lista de pendentes
 - Histórico com filtros por status
@@ -29,6 +33,9 @@ WhatsApp.
 - Leitura de etiqueta: Claude Haiku (visão), via Edge Function
 - Endereço: ViaCEP e Google Geocoding
 - Mapa: react-native-maps
+- Localização: expo-location
+- Comprovante: expo-image-picker e Supabase Storage
+- Offline: AsyncStorage e expo-network
 - WhatsApp: Edge Function `send-whatsapp` (Z-API)
 - Interface: expo-linear-gradient, @expo/vector-icons, API Animated
 - Testes: Jest
@@ -63,10 +70,15 @@ Google Maps também no `app.json` (`android.config.googleMaps.apiKey`).
 
 ## Banco de dados
 
-Aplique a migration no projeto Supabase com `npx supabase db push`, ou cole o
-conteúdo de `supabase/migrations/20260612000000_create_packages.sql` no SQL
-Editor do dashboard. A tabela `packages` usa RLS: cada entregador acessa apenas
-os próprios pacotes.
+Aplique as migrations no projeto Supabase com `npx supabase db push`, ou cole o
+conteúdo dos arquivos em `supabase/migrations/` no SQL Editor do dashboard, na
+ordem:
+
+1. `20260612000000_create_packages.sql` — tabela `packages` com RLS
+2. `20260620000000_proof_photo.sql` — coluna `photo_url`, bucket de Storage
+   `proofs` e policies da foto de comprovação
+
+A tabela `packages` usa RLS: cada entregador acessa apenas os próprios pacotes.
 
 ### Tabela `packages`
 
@@ -83,6 +95,7 @@ os próprios pacotes.
 | latitude / longitude | float8 | Coordenadas |
 | status | text | pending / delivered / failed |
 | notes | text | Observações |
+| photo_url | text | URL da foto de comprovação |
 | created_at / delivered_at | timestamptz | Datas |
 
 ## Autenticação por e-mail
@@ -149,9 +162,8 @@ supabase/
 
 ## Roadmap
 
-- Captura de etiqueta sem código de barras
-- Otimização automática da ordem de entrega
-- Foto de comprovação de entrega
+- Sincronização offline também para novos pacotes escaneados
+- Agrupamento de pacotes por rota
 - Painel web administrativo
 
 ## Licença

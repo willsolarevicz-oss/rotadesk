@@ -15,6 +15,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { AppTabsParamList, AppStackParamList } from '../types/navigation'
 import type { Package, PackageStatus } from '../types/package'
 import { listPackages } from '../services/packages'
+import { getCachedPackages } from '../services/offlineCache'
+import { useOnline } from '../hooks/useOnline'
 import { colors, spacing, radius, shadow, statusMeta } from '../theme'
 import FadeInView from '../components/FadeInView'
 import PressableScale from '../components/PressableScale'
@@ -42,12 +44,17 @@ export default function HistoryScreen() {
   const [packages, setPackages] = useState<Package[]>([])
   const [loading, setLoading] = useState(true)
 
+  const online = useOnline()
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       setPackages(await listPackages(filter))
     } catch {
-      setPackages([])
+      const cached = await getCachedPackages()
+      setPackages(
+        filter === 'all' ? cached : cached.filter((p) => p.status === filter)
+      )
     } finally {
       setLoading(false)
     }
@@ -80,6 +87,13 @@ export default function HistoryScreen() {
           </PressableScale>
         ))}
       </View>
+
+      {!online ? (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={15} color="#92400e" />
+          <Text style={styles.offlineText}>Sem internet. Mostrando dados salvos.</Text>
+        </View>
+      ) : null}
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
@@ -158,6 +172,17 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.primary },
   chipText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: '#fff' },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef3c7',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+  },
+  offlineText: { flex: 1, fontSize: 12, color: '#92400e', fontWeight: '600' },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   emptyWrap: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   empty: { color: colors.textFaint, marginTop: 10 },

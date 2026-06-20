@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
@@ -21,6 +21,9 @@ import { supabase } from '../services/supabase'
 import { listPackages } from '../services/packages'
 import { computeStats, type PackageStats } from '../utils/stats'
 import { sortByProximity } from '../utils/distance'
+import { cachePackages, getCachedPackages } from '../services/offlineCache'
+import { flushQueue } from '../services/offlineQueue'
+import { useOnline } from '../hooks/useOnline'
 import type { Package } from '../types/package'
 import type { AppTabsParamList, AppStackParamList } from '../types/navigation'
 import { colors, spacing, radius, shadow, brandGradient } from '../theme'
@@ -61,9 +64,11 @@ export default function HomeScreen() {
       const all = await listPackages('all')
       setPackages(all)
       setStats(computeStats(all))
+      cachePackages(all)
     } catch {
-      setPackages([])
-      setStats({ pending: 0, delivered: 0, failed: 0 })
+      const cached = await getCachedPackages()
+      setPackages(cached)
+      setStats(computeStats(cached))
     } finally {
       setLoading(false)
     }
@@ -74,6 +79,15 @@ export default function HomeScreen() {
       load()
     }, [load])
   )
+
+  const online = useOnline()
+  useEffect(() => {
+    if (online) {
+      flushQueue().then((n) => {
+        if (n > 0) load()
+      })
+    }
+  }, [online, load])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -159,6 +173,16 @@ export default function HomeScreen() {
           />
         </View>
       </FadeInView>
+
+      {!online ? (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={15} color="#92400e" />
+          <Text style={styles.offlineText}>
+            Sem internet. Mostrando dados salvos; entregas marcadas sincronizam
+            quando a conexão voltar.
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.sectionRow}>
         <Text style={styles.sectionTitle}>Pacotes pendentes</Text>
@@ -295,6 +319,17 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '800' },
   statLabel: { fontSize: 12, color: colors.textMuted },
   statDivider: { width: 1, backgroundColor: colors.border, marginVertical: 4 },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef3c7',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.md,
+  },
+  offlineText: { flex: 1, fontSize: 12, color: '#92400e', fontWeight: '600' },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',

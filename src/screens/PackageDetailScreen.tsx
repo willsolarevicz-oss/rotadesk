@@ -26,6 +26,8 @@ import {
 import { sendWhatsApp } from '../services/notifications'
 import { buildWhatsAppMessage } from '../utils/messages'
 import { buildNavigationUrl } from '../utils/maps'
+import { enqueueStatus } from '../services/offlineQueue'
+import { useOnline } from '../hooks/useOnline'
 import { colors, spacing, radius, shadow, statusMeta } from '../theme'
 import FadeInView from '../components/FadeInView'
 import PressableScale from '../components/PressableScale'
@@ -40,6 +42,7 @@ export default function PackageDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [uploadingProof, setUploadingProof] = useState(false)
+  const online = useOnline()
 
   const load = useCallback(async () => {
     const data = await getPackage(packageId)
@@ -52,6 +55,24 @@ export default function PackageDetailScreen({ route, navigation }: Props) {
   }, [load])
 
   async function changeStatus(status: PackageStatus) {
+    if (!online) {
+      await enqueueStatus(packageId, status)
+      setPkg((prev) =>
+        prev
+          ? {
+              ...prev,
+              status,
+              delivered_at:
+                status === 'pending' ? null : new Date().toISOString(),
+            }
+          : prev
+      )
+      Alert.alert(
+        'Salvo offline',
+        'Sem internet agora. A mudança será sincronizada quando a conexão voltar.'
+      )
+      return
+    }
     setWorking(true)
     try {
       const updated = await updatePackageStatus(packageId, status)
@@ -84,6 +105,13 @@ export default function PackageDetailScreen({ route, navigation }: Props) {
 
   async function addProof() {
     if (!pkg) return
+    if (!online) {
+      Alert.alert(
+        'Sem internet',
+        'A foto de comprovação precisa de conexão para ser enviada.'
+      )
+      return
+    }
     const perm = await ImagePicker.requestCameraPermissionsAsync()
     if (!perm.granted) {
       Alert.alert(
