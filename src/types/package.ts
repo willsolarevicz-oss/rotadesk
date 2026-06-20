@@ -13,6 +13,7 @@ export interface Package {
   longitude: number | null
   status: PackageStatus
   notes: string | null
+  photo_url: string | null
   created_at: string
   delivered_at: string | null
 }

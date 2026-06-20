@@ -7,13 +7,22 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Image,
 } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
+import * as ImageManipulator from 'expo-image-manipulator'
 import MapView, { Marker } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../types/navigation'
 import type { Package, PackageStatus } from '../types/package'
-import { getPackage, updatePackageStatus, deletePackage } from '../services/packages'
+import {
+  getPackage,
+  updatePackageStatus,
+  deletePackage,
+  uploadProofPhoto,
+  markDeliveredWithProof,
+} from '../services/packages'
 import { sendWhatsApp } from '../services/notifications'
 import { buildWhatsAppMessage } from '../utils/messages'
 import { buildNavigationUrl } from '../utils/maps'
@@ -30,6 +39,7 @@ export default function PackageDetailScreen({ route, navigation }: Props) {
   const [pkg, setPkg] = useState<Package | null>(null)
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
+  const [uploadingProof, setUploadingProof] = useState(false)
 
   const load = useCallback(async () => {
     const data = await getPackage(packageId)
@@ -69,6 +79,36 @@ export default function PackageDetailScreen({ route, navigation }: Props) {
       Alert.alert('Erro ao enviar', (e as Error).message)
     } finally {
       setWorking(false)
+    }
+  }
+
+  async function addProof() {
+    if (!pkg) return
+    const perm = await ImagePicker.requestCameraPermissionsAsync()
+    if (!perm.granted) {
+      Alert.alert(
+        'Sem permissão',
+        'Permita o acesso à câmera para tirar a foto de comprovação.'
+      )
+      return
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.6 })
+    if (result.canceled) return
+    setUploadingProof(true)
+    try {
+      const shrunk = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 1200 } }],
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      )
+      const url = await uploadProofPhoto(pkg.id, shrunk.base64 as string)
+      const updated = await markDeliveredWithProof(pkg.id, url)
+      setPkg(updated)
+      Alert.alert('Entrega registrada', 'Foto de comprovação salva.')
+    } catch (e) {
+      Alert.alert('Erro', (e as Error).message)
+    } finally {
+      setUploadingProof(false)
     }
   }
 
@@ -200,6 +240,16 @@ export default function PackageDetailScreen({ route, navigation }: Props) {
           />
         </View>
 
+        {pkg.photo_url ? (
+          <View style={styles.proofCard}>
+            <View style={styles.proofHeader}>
+              <Ionicons name="checkmark-done" size={16} color={colors.delivered} />
+              <Text style={styles.proofLabel}>Comprovante de entrega</Text>
+            </View>
+            <Image source={{ uri: pkg.photo_url }} style={styles.proofImage} />
+          </View>
+        ) : null}
+
         <GradientButton
           title="Navegar até o endereço"
           onPress={openNavigation}
@@ -245,6 +295,23 @@ export default function PackageDetailScreen({ route, navigation }: Props) {
             disabled={working}
           />
         </View>
+
+        <PressableScale
+          style={styles.proofBtn}
+          onPress={addProof}
+          disabled={uploadingProof}
+        >
+          {uploadingProof ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <>
+              <Ionicons name="camera" size={18} color={colors.primary} />
+              <Text style={styles.proofBtnText}>
+                {pkg.photo_url ? 'Atualizar comprovante' : 'Foto de comprovação'}
+              </Text>
+            </>
+          )}
+        </PressableScale>
 
         {pkg.status !== 'pending' ? (
           <PressableScale
@@ -408,4 +475,36 @@ const styles = StyleSheet.create({
     borderColor: colors.failed,
   },
   deleteText: { color: colors.failed, fontWeight: '700', fontSize: 13 },
+  proofCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+    ...shadow.soft,
+  },
+  proofHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  proofLabel: { fontSize: 13, fontWeight: '700', color: colors.text },
+  proofImage: {
+    width: '100%',
+    height: 220,
+    borderRadius: radius.md,
+    backgroundColor: '#e2e8f0',
+  },
+  proofBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    marginTop: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  proofBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
 })

@@ -1,3 +1,4 @@
+import { decode } from 'base64-arraybuffer'
 import { supabase } from './supabase'
 import type { Package, PackageInput, PackageStatus } from '../types/package'
 
@@ -61,6 +62,45 @@ export async function updatePackage(
 export async function deletePackage(id: string): Promise<void> {
   const { error } = await supabase.from('packages').delete().eq('id', id)
   if (error) throw error
+}
+
+// Envia a foto (base64) pro Storage e devolve a URL pública.
+export async function uploadProofPhoto(
+  packageId: string,
+  base64: string
+): Promise<string> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Sessão expirada. Faça login novamente.')
+
+  const path = `${user.id}/${packageId}-${Date.now()}.jpg`
+  const { error } = await supabase.storage
+    .from('proofs')
+    .upload(path, decode(base64), { contentType: 'image/jpeg', upsert: true })
+  if (error) throw error
+
+  const { data } = supabase.storage.from('proofs').getPublicUrl(path)
+  return data.publicUrl
+}
+
+// Marca como entregue já guardando a foto de comprovação.
+export async function markDeliveredWithProof(
+  id: string,
+  photoUrl: string
+): Promise<Package> {
+  const { data, error } = await supabase
+    .from('packages')
+    .update({
+      status: 'delivered',
+      delivered_at: new Date().toISOString(),
+      photo_url: photoUrl,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as Package
 }
 
 export async function updatePackageStatus(
