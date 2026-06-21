@@ -27,16 +27,19 @@ export default function PressableScale({
       useNativeDriver: true,
     }).start()
 
+  // O próprio Pressable é o elemento estilizado e animado, para que
+  // flex/alinhamento passados em `style` funcionem dentro de linhas.
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       onPressIn={() => animate(0.96)}
       onPressOut={() => animate(1)}
       disabled={disabled}
+      style={[style, { transform: [{ scale }] }]}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }]}>
-        {children}
-      </Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressable>
   )
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
