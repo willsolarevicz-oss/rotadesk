@@ -5,163 +5,247 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../services/supabase'
-import { colors, spacing, radius, shadow, brandGradient } from '../theme'
+import { colors, spacing, radius, shadow } from '../theme'
 import FadeInView from '../components/FadeInView'
 import GradientButton from '../components/GradientButton'
+import SecretBox from '../components/SecretBox'
 
-type Step = 'email' | 'otp'
+type Mode = 'login' | 'signup'
+type IoniconName = keyof typeof Ionicons.glyphMap
 
 export default function LoginScreen() {
-  const [step, setStep] = useState<Step>('email')
+  const [mode, setMode] = useState<Mode>('login')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
-  async function handleSendOtp() {
+  const isSignup = mode === 'signup'
+
+  function clearMessages() {
     setError('')
+    setInfo('')
+  }
+
+  async function handleLogin() {
+    clearMessages()
+    if (!email.trim() || !password) {
+      setError('Preencha e-mail e senha')
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+    setLoading(false)
+    if (error) setError(traduzErro(error.message))
+    // sucesso: o RootNavigator redireciona via onAuthStateChange
+  }
+
+  async function handleSignup() {
+    clearMessages()
+    if (!name.trim()) {
+      setError('Digite o nome que vai aparecer no app')
+      return
+    }
     if (!email.trim()) {
       setError('Digite seu e-mail')
       return
     }
+    if (password.length < 6) {
+      setError('A senha precisa de ao menos 6 caracteres')
+      return
+    }
+    if (password !== confirm) {
+      setError('As senhas não são iguais')
+      return
+    }
     setLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { name: name.trim() } },
+    })
     setLoading(false)
     if (error) {
-      setError(error.message)
-    } else {
-      setStep('otp')
+      setError(traduzErro(error.message))
+      return
     }
+    if (!data.session) {
+      setInfo('Conta criada! Confirme o e-mail que enviamos e depois entre.')
+      setMode('login')
+    }
+    // se já veio sessão, o RootNavigator redireciona
   }
 
-  async function handleVerifyOtp() {
-    setError('')
-    setLoading(true)
-    // Tenta como login por e-mail; se falhar, tenta como confirmação de cadastro
-    let { error } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: otp.trim(),
-      type: 'email',
-    })
-    if (error) {
-      const retry = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otp.trim(),
-        type: 'signup',
-      })
-      error = retry.error
-    }
-    setLoading(false)
-    if (error) {
-      setError(error.message)
-    }
-    // Em caso de sucesso: o RootNavigator redireciona via onAuthStateChange
+  function switchMode() {
+    setMode(isSignup ? 'login' : 'signup')
+    clearMessages()
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <StatusBar style="dark" />
-      <FadeInView style={styles.inner}>
-        <LinearGradient
-          colors={brandGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.logo}
-        >
-          <Ionicons name="cube" size={38} color="#fff" />
-        </LinearGradient>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <FadeInView style={styles.inner}>
+          <SecretBox open={showPassword} />
 
-        <Text style={styles.title}>Rotadesk</Text>
-        <Text style={styles.subtitle}>
-          {step === 'email'
-            ? 'Entre para gerenciar suas entregas'
-            : `Código enviado para ${email}`}
-        </Text>
+          <Text style={styles.title}>Rotadesk</Text>
+          <Text style={styles.subtitle}>
+            {isSignup
+              ? 'Crie sua conta de entregador'
+              : 'Entre para gerenciar suas entregas'}
+          </Text>
 
-        <View style={styles.card}>
-          {step === 'email' ? (
-            <>
-              <View style={styles.inputRow}>
-                <Ionicons name="mail-outline" size={20} color={colors.textFaint} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="seu@email.com"
-                  placeholderTextColor={colors.textFaint}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoFocus
-                />
-              </View>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <GradientButton
-                title="Enviar código"
-                loading={loading}
-                onPress={handleSendOtp}
-                style={{ marginTop: spacing.md }}
+          <View style={styles.card}>
+            {isSignup ? (
+              <InputRow
+                icon="person-outline"
+                placeholder="Seu nome"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
               />
-            </>
-          ) : (
-            <>
-              <View style={styles.inputRow}>
-                <Ionicons name="keypad-outline" size={20} color={colors.textFaint} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Código de 8 dígitos"
-                  placeholderTextColor={colors.textFaint}
-                  value={otp}
-                  onChangeText={setOtp}
-                  keyboardType="number-pad"
-                  maxLength={8}
-                  autoFocus
-                />
-              </View>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <GradientButton
-                title="Entrar"
-                loading={loading}
-                onPress={handleVerifyOtp}
-                style={{ marginTop: spacing.md }}
+            ) : null}
+
+            <InputRow
+              icon="mail-outline"
+              placeholder="seu@email.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <PasswordRow
+              placeholder="Sua senha"
+              value={password}
+              onChangeText={setPassword}
+              show={showPassword}
+              onToggle={() => setShowPassword((v) => !v)}
+            />
+
+            {isSignup ? (
+              <PasswordRow
+                placeholder="Confirme a senha"
+                value={confirm}
+                onChangeText={setConfirm}
+                show={showPassword}
+                onToggle={() => setShowPassword((v) => !v)}
               />
-              <TouchableOpacity
-                onPress={() => {
-                  setStep('email')
-                  setError('')
-                }}
-              >
-                <Text style={styles.back}>← Voltar</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </FadeInView>
+            ) : null}
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {info ? <Text style={styles.info}>{info}</Text> : null}
+
+            <GradientButton
+              title={isSignup ? 'Criar conta' : 'Entrar'}
+              loading={loading}
+              onPress={isSignup ? handleSignup : handleLogin}
+              style={{ marginTop: spacing.md }}
+            />
+
+            <TouchableOpacity onPress={switchMode}>
+              <Text style={styles.switch}>
+                {isSignup
+                  ? 'Já tem conta? Entrar'
+                  : 'Não tem conta? Criar conta'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </FadeInView>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  )
+}
+
+function InputRow({
+  icon,
+  ...rest
+}: { icon: IoniconName } & React.ComponentProps<typeof TextInput>) {
+  return (
+    <View style={styles.inputRow}>
+      <Ionicons name={icon} size={20} color={colors.textFaint} />
+      <TextInput
+        style={styles.input}
+        placeholderTextColor={colors.textFaint}
+        {...rest}
+      />
     </View>
   )
 }
 
+function PasswordRow({
+  placeholder,
+  value,
+  onChangeText,
+  show,
+  onToggle,
+}: {
+  placeholder: string
+  value: string
+  onChangeText: (t: string) => void
+  show: boolean
+  onToggle: () => void
+}) {
+  return (
+    <View style={styles.inputRow}>
+      <Ionicons name="lock-closed-outline" size={20} color={colors.textFaint} />
+      <TextInput
+        style={styles.input}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textFaint}
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={!show}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      <TouchableOpacity onPress={onToggle} hitSlop={10} testID="toggle-password">
+        <Ionicons
+          name={show ? 'eye' : 'eye-off'}
+          size={20}
+          color={colors.textMuted}
+        />
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+// Mensagens do Supabase chegam em inglês; traduz as mais comuns.
+function traduzErro(message: string): string {
+  const m = message.toLowerCase()
+  if (m.includes('invalid login credentials')) return 'E-mail ou senha incorretos'
+  if (m.includes('already registered')) return 'Esse e-mail já tem uma conta'
+  if (m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar'
+  if (m.includes('unable to validate email')) return 'E-mail inválido'
+  return message
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
+  container: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.xl },
   inner: { alignItems: 'center' },
-  logo: {
-    width: 84,
-    height: 84,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.card,
-  },
   title: {
     fontSize: 30,
     fontWeight: '800',
@@ -191,13 +275,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     backgroundColor: '#f8fafc',
+    marginBottom: spacing.sm,
   },
   input: { flex: 1, paddingVertical: 14, fontSize: 16, color: colors.text },
-  error: { color: colors.failed, marginTop: spacing.sm },
-  back: {
+  error: { color: colors.failed, marginTop: spacing.xs },
+  info: { color: colors.delivered, marginTop: spacing.xs, fontWeight: '600' },
+  switch: {
     textAlign: 'center',
     marginTop: spacing.lg,
-    color: colors.textMuted,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '700',
   },
 })

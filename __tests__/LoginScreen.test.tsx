@@ -5,63 +5,86 @@ import LoginScreen from '../src/screens/LoginScreen'
 jest.mock('../src/services/supabase', () => ({
   supabase: {
     auth: {
-      signInWithOtp: jest.fn(),
-      verifyOtp: jest.fn(),
+      signInWithPassword: jest.fn(),
+      signUp: jest.fn(),
     },
   },
 }))
 
 import { supabase } from '../src/services/supabase'
-const mockSignInWithOtp = supabase.auth.signInWithOtp as jest.Mock
+const mockSignIn = supabase.auth.signInWithPassword as jest.Mock
+const mockSignUp = supabase.auth.signUp as jest.Mock
 
 describe('LoginScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('renderiza o input de e-mail no passo 1', () => {
+  it('mostra e-mail e senha no modo entrar', () => {
     const { getByPlaceholderText } = render(<LoginScreen />)
     expect(getByPlaceholderText('seu@email.com')).toBeTruthy()
+    expect(getByPlaceholderText('Sua senha')).toBeTruthy()
   })
 
-  it('avança para o passo OTP após envio bem-sucedido', async () => {
-    mockSignInWithOtp.mockResolvedValueOnce({ error: null })
+  it('alterna a visibilidade da senha pelo olho', () => {
+    const { getByPlaceholderText, getByTestId } = render(<LoginScreen />)
+    const senha = getByPlaceholderText('Sua senha')
+    expect(senha.props.secureTextEntry).toBe(true)
+    fireEvent.press(getByTestId('toggle-password'))
+    expect(senha.props.secureTextEntry).toBe(false)
+  })
+
+  it('mostra nome e confirmar senha no modo cadastro', () => {
+    const { getByText, getByPlaceholderText } = render(<LoginScreen />)
+    fireEvent.press(getByText('Não tem conta? Criar conta'))
+    expect(getByPlaceholderText('Seu nome')).toBeTruthy()
+    expect(getByPlaceholderText('Confirme a senha')).toBeTruthy()
+  })
+
+  it('chama signInWithPassword ao entrar', async () => {
+    mockSignIn.mockResolvedValueOnce({ error: null })
     const { getByPlaceholderText, getByText } = render(<LoginScreen />)
 
     fireEvent.changeText(getByPlaceholderText('seu@email.com'), 'teste@email.com')
-    fireEvent.press(getByText('Enviar código'))
+    fireEvent.changeText(getByPlaceholderText('Sua senha'), 'segredo123')
+    fireEvent.press(getByText('Entrar'))
 
     await waitFor(() => {
-      expect(getByPlaceholderText('Código de 8 dígitos')).toBeTruthy()
+      expect(mockSignIn).toHaveBeenCalledWith({
+        email: 'teste@email.com',
+        password: 'segredo123',
+      })
     })
   })
 
-  it('exibe erro inline quando signInWithOtp falha', async () => {
-    mockSignInWithOtp.mockResolvedValueOnce({
-      error: { message: 'E-mail inválido' },
+  it('exibe erro traduzido quando o login falha', async () => {
+    mockSignIn.mockResolvedValueOnce({
+      error: { message: 'Invalid login credentials' },
     })
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
-
-    fireEvent.changeText(getByPlaceholderText('seu@email.com'), 'invalido')
-    fireEvent.press(getByText('Enviar código'))
-
-    await waitFor(() => {
-      expect(getByText('E-mail inválido')).toBeTruthy()
-    })
-  })
-
-  it('volta para o passo 1 ao pressionar Voltar', async () => {
-    mockSignInWithOtp.mockResolvedValueOnce({ error: null })
     const { getByPlaceholderText, getByText } = render(<LoginScreen />)
 
     fireEvent.changeText(getByPlaceholderText('seu@email.com'), 'teste@email.com')
-    fireEvent.press(getByText('Enviar código'))
-
-    await waitFor(() => getByText('← Voltar'))
-    fireEvent.press(getByText('← Voltar'))
+    fireEvent.changeText(getByPlaceholderText('Sua senha'), 'errada')
+    fireEvent.press(getByText('Entrar'))
 
     await waitFor(() => {
-      expect(getByPlaceholderText('seu@email.com')).toBeTruthy()
+      expect(getByText('E-mail ou senha incorretos')).toBeTruthy()
     })
+  })
+
+  it('valida senhas diferentes no cadastro', async () => {
+    const { getByText, getByPlaceholderText } = render(<LoginScreen />)
+    fireEvent.press(getByText('Não tem conta? Criar conta'))
+
+    fireEvent.changeText(getByPlaceholderText('Seu nome'), 'Will')
+    fireEvent.changeText(getByPlaceholderText('seu@email.com'), 'will@email.com')
+    fireEvent.changeText(getByPlaceholderText('Sua senha'), 'segredo123')
+    fireEvent.changeText(getByPlaceholderText('Confirme a senha'), 'outra123')
+    fireEvent.press(getByText('Criar conta'))
+
+    await waitFor(() => {
+      expect(getByText('As senhas não são iguais')).toBeTruthy()
+    })
+    expect(mockSignUp).not.toHaveBeenCalled()
   })
 })

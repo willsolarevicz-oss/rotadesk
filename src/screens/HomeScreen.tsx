@@ -124,7 +124,10 @@ export default function HomeScreen() {
   const pending = packages.filter((p) => p.status === 'pending')
   const pendingSorted =
     nearMode && origin ? sortByProximity(pending, origin) : pending
-  const displayName = session?.user.email ?? 'Entregador'
+  const displayName =
+    (session?.user.user_metadata?.name as string | undefined) ??
+    session?.user.email ??
+    'Entregador'
 
   return (
     <View style={styles.container}>
