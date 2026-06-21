@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { AppStackParamList, PackagePrefill } from '../types/navigation'
 import { readLabel } from '../services/labelReader'
 import { lookupCep } from '../services/cep'
+import { isTrackingCode } from '../utils/tracking'
 import { colors, spacing, radius } from '../theme'
 import PressableScale from '../components/PressableScale'
 import GradientButton from '../components/GradientButton'
@@ -47,7 +48,10 @@ export default function ScannerScreen() {
   // etapa 1: detectou o código de barras -> pula pra etapa 2 (endereço)
   function handleScanned(result: { type: string; data: string }) {
     if (phase !== 'code' || !isFocused) return
-    lastCodeRef.current = result.data
+    const value = result.data.trim()
+    // ignora leituras inválidas (JSON de QR, lixo, código curto demais)
+    if (!isTrackingCode(value)) return
+    lastCodeRef.current = value
     setPhase('address')
   }
 
@@ -210,8 +214,9 @@ export default function ScannerScreen() {
         style={styles.fill}
         facing="back"
         barcodeScannerSettings={{
+          // só códigos de barra lineares (1D). Ignora QR/DataMatrix/PDF417,
+          // que costumam carregar JSON e não o código de rastreio.
           barcodeTypes: [
-            'qr',
             'ean13',
             'ean8',
             'code128',
@@ -219,9 +224,6 @@ export default function ScannerScreen() {
             'code93',
             'codabar',
             'upc_e',
-            'pdf417',
-            'datamatrix',
-            'aztec',
             'itf14',
           ],
         }}
