@@ -11,6 +11,12 @@ jest.mock('../src/services/supabase', () => ({
   },
 }))
 
+// a caixa animada usa SVG nativo; nos testes não precisamos do visual
+jest.mock('../src/components/SecretBox', () => ({
+  __esModule: true,
+  default: () => null,
+}))
+
 import { supabase } from '../src/services/supabase'
 const mockSignIn = supabase.auth.signInWithPassword as jest.Mock
 const mockSignUp = supabase.auth.signUp as jest.Mock
